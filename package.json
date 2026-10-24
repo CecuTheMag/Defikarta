@@ -1,0 +1,15 @@
+{
+  "name": "defikarta",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "web": "npm run dev -w @defikarta/web",
+    "mobile": "npm run start -w @defikarta/mobile",
+    "test": "npm test -w @defikarta/core",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
