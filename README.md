@@ -3,6 +3,11 @@
 Най-близкият дефибрилатор (AED) и указания за сърдечен масаж — Стара Загора.
 Find the nearest AED, call 112 and get guided through hands-only CPR.
 
+## The plan
+
+- [docs/IDEA.md](docs/IDEA.md): the idea, merging ДефиКарта (Идейник 2026) and СърцеНаблизо (НОИТ 2026–27) into one project: problem, users, product, KPIs, budget, timeline, registration texts
+- [docs/BLUEPRINT.md](docs/BLUEPRINT.md): how the whole system works: architecture (Phase 1 Supabase → Phase 2 distributed services), data model, incident state machine, dispatch algorithm, privacy, API, security, testing, build order
+
 ## Structure
 
 ```
@@ -44,9 +49,11 @@ Android store builds need a Google Maps key in `GOOGLE_MAPS_ANDROID_KEY` (Expo G
 
 ## Next
 
-- [ ] Mapping walk → add every AED to OSM (with `defibrillator:location`, `opening_hours`)
-- [ ] Supabase backend: submissions/moderation queue, responders, alerts
-- [ ] Responder push alerts (expo-notifications on mobile)
-- [ ] "Add an AED" form, coverage heatmap for the municipality
-- [ ] Pre-recorded Bulgarian voice (device TTS may lack bg-BG)
-- [ ] App icons and splash
+Full milestone list with dates: [BLUEPRINT.md §20](docs/BLUEPRINT.md#20-build-order).
+
+- [ ] M1: Supabase backend (schema, RLS, AED API, OSM sync), map filters, location hint
+- [ ] M2: "Add an AED" form + moderation console; mapping walk 7–9 Nov → every AED into OSM
+- [ ] M3: Responder sign-up, certificate verification, push
+- [ ] M4: Incidents, dispatch engine, dispatcher console, first school drill
+- [ ] M5: Coverage heatmap, drills ×3; M6: video due 2 Dec
+- [ ] Pre-recorded Bulgarian voice (device TTS may lack bg-BG); app icons and splash
