@@ -12,18 +12,23 @@ Find the nearest AED, call 112 and get guided through hands-only CPR.
 
 ```
 apps/mobile     Native iOS + Android app (Expo / React Native, Expo Router)
-apps/web        Website + installable PWA (Vite, React, Leaflet)
+apps/web        Website + installable PWA (Vite, React, Leaflet): public flow, add-AED,
+                responder app, dispatcher console, coverage map
+apps/server    Local drill backend (Node, no database or account needed): the BLUEPRINT
+                RPCs, dispatch clock, realtime (SSE), simulated responders
 packages/core   Shared logic: AED data, OSM/Overpass import, distance,
-                "open now" (opening_hours), ranking, CPR timing and texts
+                "open now" (opening_hours), ranking, CPR timing and texts,
+                + incident state machine, dispatch planner, coverage grid
 ```
 
-Both apps import `@defikarta/core`, so the ranking rules and CPR content are identical everywhere.
+The apps, the server and the tests import `@defikarta/core`, so ranking, dispatch and CPR rules are identical everywhere.
 
 ## Run
 
 ```bash
 npm install          # once, from the repo root
-npm run web          # website at http://127.0.0.1:5180
+npm run dev          # website (http://127.0.0.1:5180) + drill backend (:8791) together
+npm run web          # website only: the public flow still works without the backend
 npm run mobile       # Expo dev server: scan the QR with Expo Go, or press i / a
 npm test             # core unit tests
 ```
@@ -35,6 +40,20 @@ cd apps/mobile && npx eas-cli@latest build --platform all
 ```
 
 Android store builds need a Google Maps key in `GOOGLE_MAPS_ANDROID_KEY` (Expo Go works without one).
+
+## Try the whole idea (drill environment)
+
+`npm run dev`, open http://127.0.0.1:5180. Every screen carries a yellow „УЧЕНИЕ“ strip: this environment has 18 simulated responders and 8 **demo** AEDs (labelled „ДЕМО“), never real data.
+
+1. **Dispatcher**: `#/login` → Диспечер → Конзола → tap the map → „Стартирай учение“. Watch offers go out in waves, responders accept, one runs for the AED, and read the drill report.
+2. **Responder**: log in as Доброволец in another tab, set a position, „Достъпен съм“, then start a drill nearby. Accept „Нося AED“ and use „Симулирай придвижване“.
+3. **Bystander**: „Някой припадна“ → 112 → CPR guide → „Извикай обучени хора наблизо“ (flag `public_alerts`).
+4. **Add an AED → verify**: „Добави AED“, then Верификатор → Конзола → Проверка.
+5. **Coverage**: Покритие shows the walking-time heatmap for now / weekday / night / 24/7-only.
+
+Test accounts (drill only): `responder@`, `dispatcher@`, `verifier@`, `owner@`, `admin@` + `drill.defikarta.bg`, no password. The simulated responders move ×6 faster than real life (`SIM_SPEED`).
+
+**Not built yet** (see [BLUEPRINT](docs/BLUEPRINT.md)): Supabase/Postgres + RLS (the server is in-memory and resets on restart), push notifications, responder zones and quiet hours, photo upload, population-weighted coverage, the native app's responder mode, OSRM walking times, SMS fallback.
 
 ## Data
 

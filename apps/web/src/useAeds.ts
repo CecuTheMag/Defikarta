@@ -1,40 +1,65 @@
 import { fetchOsmAeds, mergeAeds, rankAeds, SEED_AEDS, type Aed, type LatLon, type RankedAed } from '@defikarta/core';
 import { useEffect, useMemo, useState } from 'react';
 
-const CACHE_KEY = 'aeds:v1';
+const CACHE_KEY = 'aeds:v2';
 
-function readCache(): Aed[] | null {
+interface Cached {
+  osm: Aed[];
+  local: Aed[];
+}
+
+function readCache(): Cached {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? (JSON.parse(raw).osm as Aed[]) : null;
+    return raw ? (JSON.parse(raw) as Cached) : { osm: [], local: [] };
   } catch {
-    return null;
+    return { osm: [], local: [] };
   }
 }
 
-/** Same strategy as the mobile app: seed → cached OSM → fresh OSM. */
+function writeCache(c: Cached) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...c, at: new Date().toISOString() }));
+  } catch {
+    // Storage blocked (private mode): fine, we just won't work offline.
+  }
+}
+
+/**
+ * Strategy (BLUEPRINT §11): seed → cache → fresh, from two sources.
+ * OSM is the source of truth; our API adds verified local records not in OSM yet (and, in the drill env, demo devices).
+ * If the API is unreachable, the bundled seed keeps the map useful offline.
+ */
 export function useAeds(coords: LatLon | null): { ranked: RankedAed[]; offline: boolean } {
-  const [aeds, setAeds] = useState<Aed[]>(() => mergeAeds(readCache() ?? [], SEED_AEDS));
+  const [data, setData] = useState<Cached>(readCache);
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    let osmOk = true;
+    let apiOk = true;
+    const update = (patch: Partial<Cached>) =>
+      setData((d) => {
+        const next = { ...d, ...patch };
+        writeCache(next);
+        return next;
+      });
+    const finish = () => !cancelled && setOffline(!osmOk && !apiOk);
     fetchOsmAeds()
-      .then((osm) => {
-        if (cancelled) return;
-        setAeds(mergeAeds(osm, SEED_AEDS));
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ osm, at: new Date().toISOString() }));
-        } catch {
-          // Storage blocked (private mode): fine, we just won't work offline.
-        }
-      })
-      .catch(() => !cancelled && setOffline(true));
+      .then((osm) => !cancelled && update({ osm }))
+      .catch(() => (osmOk = false))
+      .finally(finish);
+    fetch('/api/aeds')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { aeds: Aed[] }) => !cancelled && update({ local: j.aeds }))
+      .catch(() => (apiOk = false))
+      .finally(finish);
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const aeds = useMemo(() => mergeAeds(data.osm, data.local.length ? data.local : SEED_AEDS), [data]);
   const ranked = useMemo(
     () => (coords ? rankAeds(aeds, coords) : aeds.map((a) => ({ ...a, distanceM: NaN, walkMin: NaN, open: 'unknown' as const }))),
     [aeds, coords],

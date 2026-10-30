@@ -1,9 +1,14 @@
 {
   "name": "defikarta",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "web": "npm run dev -w @defikarta/web",
+    "server": "npm run start -w @defikarta/server",
     "mobile": "npm run start -w @defikarta/mobile",
     "test": "npm test -w @defikarta/core",
     "typecheck": "npm run typecheck --workspaces --if-present"

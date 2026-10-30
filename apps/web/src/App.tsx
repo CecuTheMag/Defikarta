@@ -1,13 +1,15 @@
-import { EMERGENCY_NUMBER } from '@defikarta/core';
+import { EMERGENCY_NUMBER, STARA_ZAGORA_CENTER } from '@defikarta/core';
 import { useState } from 'react';
+import type { Config } from './api';
 import { AedCard } from './AedCard';
 import { Cpr } from './Cpr';
 import { MapView } from './MapView';
+import { AlertPeople } from './screens/AlertPeople';
 import { useAeds, useGeolocation } from './useAeds';
 
 type View = 'map' | 'call' | 'cpr';
 
-export function App() {
+export function App({ config }: { config: Config | null }) {
   const [view, setView] = useState<View>('map');
   const { coords, status } = useGeolocation();
   const { ranked, offline } = useAeds(coords);
@@ -40,7 +42,7 @@ export function App() {
             </button>
             {nearest && <AedCard aed={nearest} from={coords} />}
             <p className="count-line">
-              {ranked.length} известни дефибрилатора в града. Знаеш ли за още? Скоро: „Добави AED“.
+              {ranked.length} известни дефибрилатора в града. Знаеш ли за още? <a href="#/add">Добави AED</a>.
             </p>
           </div>
         </main>
@@ -65,6 +67,7 @@ export function App() {
         <main className="page">
           <p className="step">Стъпка 2 от 2</p>
           <Cpr />
+          {config?.flags.public_alerts && <AlertPeople coords={coords} demoCenter={config.region.center ?? STARA_ZAGORA_CENTER} />}
           {nearest && (
             <section>
               <h2 className="aed-title">Пратете някой за този дефибрилатор:</h2>

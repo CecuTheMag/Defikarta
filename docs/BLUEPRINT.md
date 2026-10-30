@@ -2,7 +2,7 @@
 
 How the whole system is built and how every part behaves. Read [IDEA.md](IDEA.md) first for the what and the why.
 
-**Status (25 Oct 2026):** the bystander side works with no backend: map, 112 → CPR flow, nearest AED (`apps/web`, `apps/mobile`, `packages/core`). Everything below that needs a server is **designed but not built**.
+**Status (30 Oct 2026):** the bystander side works with no backend (`apps/web`, `apps/mobile`, `packages/core`). A **runnable prototype of the server side** exists in `apps/server` (in-memory instead of Postgres, same RPC names and state machine): dispatch waves, two-role offers, responders, verifier queue, dispatcher console, drill report, coverage. See the README for what is and is not built. The rest of this document is the target design.
 
 Contents: [0 Principles](#0-design-principles) · [1 Overview](#1-system-overview) · [2 Roles](#2-roles-and-permissions) · [3 Flows](#3-user-flows) · [4 Data model](#4-data-model) · [5 State machines](#5-state-machines) · [6 Dispatch](#6-dispatch-algorithm) · [7 Location](#7-location-and-privacy) · [8 Notifications](#8-notifications) · [9 Walking times](#9-walking-times-and-routing) · [10 Coverage](#10-coverage-and-placement) · [11 AED data](#11-aed-data-lifecycle) · [12 API](#12-api-surface) · [13 Offline](#13-offline-and-degraded-behaviour) · [14 Security](#14-security) · [15 Flags](#15-feature-flags) · [16 Repo](#16-repository-layout) · [17 Environments](#17-environments-deploy-and-test-accounts) · [18 Testing](#18-testing) · [19 Observability](#19-observability) · [20 Build order](#20-build-order) · [21 Open decisions](#21-open-decisions)
 

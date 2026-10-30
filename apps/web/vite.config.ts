@@ -3,7 +3,13 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  server: { host: '127.0.0.1', port: 5180, strictPort: true },
+  server: {
+    host: '127.0.0.1',
+    port: 5180,
+    strictPort: true,
+    // Local drill backend (apps/server). Same-origin in dev, so there is no CORS to configure.
+    proxy: { '/api': { target: 'http://127.0.0.1:8791', changeOrigin: false } },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -23,6 +29,7 @@ export default defineConfig({
       workbox: {
         // The app shell (incl. the CPR guide) is precached, so it works offline.
         globPatterns: ['**/*.{js,css,html,svg}'],
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/tile\.openstreetmap\.org\//,

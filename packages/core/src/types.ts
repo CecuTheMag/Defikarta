@@ -3,8 +3,8 @@ export interface LatLon {
   lon: number;
 }
 
-/** Where an AED record came from. OSM is the long-term source of truth. */
-export type AedSource = 'osm' | 'seed';
+/** Where an AED record came from. OSM is the long-term source of truth; 'local' = verified here, not in OSM yet; 'demo' = fake data for the drill environment only. */
+export type AedSource = 'osm' | 'seed' | 'local' | 'demo';
 
 export interface Aed extends LatLon {
   /** Stable id: "osm:node/123" or "seed:<slug>". */
