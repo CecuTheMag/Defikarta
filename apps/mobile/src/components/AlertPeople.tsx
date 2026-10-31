@@ -1,10 +1,12 @@
 import { STARA_ZAGORA_CENTER, type LatLon, type SceneSafety } from '@defikarta/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import { Radio } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api, deviceId, fmtDur, usePoll } from '@/lib/api';
-import { colors } from '@/theme';
-import { Banner, Button, Chip, DrillTag, ErrorText, Row, Small } from './ui';
+import { colors, radius, type } from '@/theme';
+import { Banner, Button, Chip, DrillTag, ErrorText, Row, Stat, T } from './ui';
 
 const KEY = 'defikarta:incident';
 
@@ -33,6 +35,7 @@ export function AlertPeople({ coords }: { coords: LatLon | null }) {
     try {
       const pos = coords ?? STARA_ZAGORA_CENTER;
       const r = await api<{ id: string }>('/api/rpc/create_incident', { source: 'bystander', ...pos, deviceId: deviceId(), key: `${deviceId()}-${Date.now()}`, called112: true, scene });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       remember(r.id);
       status.reload();
     } catch (x) {
@@ -48,51 +51,49 @@ export function AlertPeople({ coords }: { coords: LatLon | null }) {
     return (
       <View style={styles.box}>
         <DrillTag />
-        <Text style={styles.h}>{s.state === 'DISPATCH_FAILED' ? 'Няма свободни доброволци наблизо. Продължавай масажа.' : s.state === 'EMS_ON_SCENE' ? 'Линейката е на място' : s.state === 'CLOSED' ? 'Сигналът е затворен' : 'Доброволци са известени'}</Text>
-        <Row style={{ gap: 18 }}>
-          <Stat n={s.notified} label="известени" />
-          <Stat n={s.enRoute} label="тръгнали" />
-          <Stat n={s.aedEtaS === null ? '—' : s.aedEtaS === 0 ? 'тук е' : `~${fmtDur(s.aedEtaS)}`} label="AED идва" />
+        <T v="heading" tone="night">{s.state === 'DISPATCH_FAILED' ? 'Няма свободни доброволци наблизо. Продължавай масажа.' : s.state === 'EMS_ON_SCENE' ? 'Линейката е на място' : s.state === 'CLOSED' ? 'Сигналът е затворен' : 'Доброволци са известени'}</T>
+        <Row gap={24}>
+          <Stat tone="night" value={s.notified} label="известени" />
+          <Stat tone="night" value={s.enRoute} label="тръгнали" />
+          <Stat tone="night" value={s.aedEtaS === null ? '—' : s.aedEtaS === 0 ? 'тук' : fmtDur(s.aedEtaS)} label="до AED" color={s.aedEtaS === 0 ? '#6CE9A6' : undefined} />
         </Row>
-        <Small>Не спирай масажа. Обаждането на 112 остава най-важното.</Small>
-        {!finished && <Button kind="ghost" title="Линейката дойде" onPress={() => api('/api/rpc/report_event', { incidentId: id, type: 'ems_on_scene', deviceId: deviceId() }).then(status.reload)} />}
-        {!finished && <Button kind="ghost" title="Отмени сигнала" onPress={() => api('/api/rpc/close_incident', { incidentId: id, cancel: true, deviceId: deviceId() }).then(status.reload)} />}
-        {finished && <Button kind="next" title="Готово" onPress={() => remember(null)} />}
+        <T v="caption" tone="night">Не спирай масажа. Обаждането на 112 остава най-важното.</T>
+        {!finished && <Button kind="nightGhost" title="Линейката дойде" onPress={() => api('/api/rpc/report_event', { incidentId: id, type: 'ems_on_scene', deviceId: deviceId() }).then(status.reload)} />}
+        {!finished && <Button kind="nightGhost" title="Отмени сигнала" onPress={() => api('/api/rpc/close_incident', { incidentId: id, cancel: true, deviceId: deviceId() }).then(status.reload)} />}
+        {finished && <Button kind="nightGhost" title="Готово" onPress={() => remember(null)} />}
       </View>
     );
   }
 
+  const blocked = busy || !scene || scene === 'unsafe';
   return (
     <View style={styles.box}>
-      <Text style={styles.q}>Безопасно ли е да се приближат хора?</Text>
+      <T v="overline" tone="night">Обучени хора наблизо</T>
+      <T v="bodyStrong" tone="night">Безопасно ли е да се приближат?</T>
       <Row>
-        <Chip label="Да" on={scene === 'safe'} onPress={() => setScene('safe')} />
-        <Chip label="Не знам" on={scene === 'unknown'} onPress={() => setScene('unknown')} />
-        <Chip label="Не (ток, огън, движение…)" danger on={scene === 'unsafe'} onPress={() => setScene('unsafe')} />
+        <Chip tone="night" label="Да" on={scene === 'safe'} onPress={() => setScene('safe')} />
+        <Chip tone="night" label="Не знам" on={scene === 'unknown'} onPress={() => setScene('unknown')} />
+        <Chip tone="night" label="Не — ток, огън, коли" danger on={scene === 'unsafe'} onPress={() => setScene('unsafe')} />
       </Row>
-      {scene === 'unsafe' && <Banner kind="danger">Не изпращаме доброволци на опасно място. Пази се и кажи на 112 какво виждаш.</Banner>}
-      <Pressable style={[styles.btn, (busy || !scene || scene === 'unsafe') && { opacity: 0.4 }]} disabled={busy || !scene || scene === 'unsafe'} onPress={start} accessibilityRole="button">
-        <Text style={styles.btnText}>📣 Извикай обучени хора наблизо</Text>
-        <Text style={styles.btnSub}>{coords ? 'ще споделим мястото ти само за този случай' : 'без GPS: демо местоположение (центъра)'}</Text>
+      {scene === 'unsafe' && <Banner tone="night" kind="danger">Не изпращаме доброволци на опасно място. Пази се и кажи на 112 какво виждаш.</Banner>}
+      <Pressable style={[styles.btn, blocked && { opacity: 0.4 }]} disabled={blocked} onPress={start} accessibilityRole="button" accessibilityState={{ disabled: blocked }}>
+        <View style={styles.btnIcon}>
+          <Radio size={22} color={colors.ink} strokeWidth={2.4} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.btnText} maxFontSizeMultiplier={1.3}>Извикай обучени хора</Text>
+          <Text style={styles.btnSub} maxFontSizeMultiplier={1.3}>{coords ? 'мястото ти се споделя само за този случай' : 'без GPS: демо местоположение (центъра)'}</Text>
+        </View>
       </Pressable>
       <ErrorText>{err}</ErrorText>
     </View>
   );
 }
 
-const Stat = ({ n, label }: { n: number | string; label: string }) => (
-  <View>
-    <Text style={styles.statN}>{n}</Text>
-    <Small>{label}</Small>
-  </View>
-);
-
 const styles = StyleSheet.create({
-  box: { backgroundColor: colors.soft, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 10 },
-  h: { fontSize: 20, fontWeight: '800', color: colors.ink },
-  q: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, gap: 2 },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  btnSub: { color: '#CFCFD6', fontSize: 13 },
-  statN: { fontSize: 20, fontWeight: '800', color: colors.ink },
+  box: { gap: 14, padding: 18, borderRadius: radius.lg, backgroundColor: colors.nightGlass, borderWidth: 1, borderColor: colors.nightEdge },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, borderRadius: radius.md, backgroundColor: '#fff', paddingHorizontal: 14 },
+  btnIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
+  btnText: { ...(type.bodyStrong as object), fontSize: 18, color: colors.ink },
+  btnSub: { ...(type.caption as object), color: colors.ink2 },
 });

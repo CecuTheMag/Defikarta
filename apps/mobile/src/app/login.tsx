@@ -1,21 +1,24 @@
 import { router } from 'expo-router';
+import { Building, ChevronDown, ChevronRight, Hand, Server, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Button, Card, DrillTag, ErrorText, H1, H3, P, Small } from '@/components/ui';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Banner, Button, Card, DrillTag, ErrorText, Field, Mark, Screen, T } from '@/components/ui';
 import { getServer, setServer } from '@/lib/api';
 import { homeFor, useSession } from '@/lib/session';
-import { colors } from '@/theme';
+import { colors, radius, space } from '@/theme';
 
-const ACCOUNTS = [
-  ['responder', 'Доброволец', 'получава известия, „Тръгвам“ / „Нося AED“'],
-  ['owner', 'Отговорник безопасност (фирма)', 'AED, пожарогасители, аптечки: срокове и напомняния'],
-] as const;
+const ACCOUNTS: [string, string, string, LucideIcon][] = [
+  ['responder', 'Доброволец', 'Известия за случаи наблизо, „Тръгвам“ и „Нося AED“', Hand],
+  ['owner', 'Отговорник безопасност', 'Дефибрилатори, пожарогасители и аптечки на фирмата', Building],
+];
 
 export default function Login() {
   const { login, refresh } = useSession();
   const [email, setEmail] = useState('');
   const [server, setSrv] = useState(getServer());
+  const [advanced, setAdvanced] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const go = async (e: string) => {
@@ -33,40 +36,53 @@ export default function Login() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
-      <DrillTag />
-      <H1>Вход</H1>
-      <P>Учебна среда: тестовите профили са отворени, без парола. В реалната среда входът е с код по имейл.</P>
-      {ACCOUNTS.map(([id, name, what]) => (
-        <Pressable key={id} style={({ pressed }) => [styles.account, pressed && { opacity: 0.7 }]} disabled={busy} onPress={() => go(`${id}@drill.defikarta.bg`)}>
-          <Text style={styles.accName}>{name}</Text>
-          <Text style={styles.accWhat}>{what}</Text>
-          <Text style={styles.accMail}>{id}@drill.defikarta.bg</Text>
-        </Pressable>
-      ))}
+    <Screen right={<DrillTag />}>
+      <View style={{ gap: space.md, paddingTop: 8 }}>
+        <Mark size={52} />
+        <T v="display">Добре дошъл.</T>
+        <T color={colors.ink2}>Учебна среда: тестовите профили са отворени, без парола. В реалната среда входът е с код по имейл.</T>
+      </View>
+
+      <View style={{ gap: space.sm }}>
+        {ACCOUNTS.map(([id, name, what, Icon]) => (
+          <Pressable key={id} disabled={busy} onPress={() => go(`${id}@drill.defikarta.bg`)} accessibilityRole="button" accessibilityLabel={`${name}. ${what}`} android_ripple={{ color: 'rgba(11,13,18,0.06)' }} style={({ pressed }) => [styles.account, pressed && { opacity: 0.7 }]}>
+            <View style={styles.accIcon}>
+              <Icon size={24} color={colors.ink} strokeWidth={2.2} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T v="bodyStrong">{name}</T>
+              <T v="caption">{what}</T>
+            </View>
+            <ChevronRight size={22} color={colors.ink3} strokeWidth={2.2} />
+          </Pressable>
+        ))}
+      </View>
+
       <Card>
-        <H3>Нов потребител</H3>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="ime@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-        <Button title="Влез / регистрирай се" disabled={busy || !email.includes('@')} onPress={() => go(email)} />
+        <Field label="Имейл" value={email} onChange={setEmail} placeholder="ime@example.com" keyboard="email-address" hint="Нов потребител? Влизаш и после ставаш доброволец с удостоверение." />
+        <Button size="lg" title="Продължи" disabled={busy || !email.includes('@')} onPress={() => go(email)} />
       </Card>
-      <Card>
-        <H3>Сървър</H3>
-        <TextInput style={styles.input} value={server} onChangeText={setSrv} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
-        <Small>По USB: http://localhost:8791 (след „adb reverse tcp:8791 tcp:8791“). По Wi-Fi: адресът на компютъра, напр. http://192.168.1.20:8791.</Small>
-        <Button kind="ghost" title="Провери връзката" onPress={async () => { await setServer(server); setErr(null); await refresh(); setErr('Връзката е запазена.'); }} />
-      </Card>
+
+      <Pressable onPress={() => setAdvanced(!advanced)} accessibilityRole="button" accessibilityState={{ expanded: advanced }} style={styles.adv}>
+        <Server size={18} color={colors.ink2} strokeWidth={2.2} />
+        <T v="label" color={colors.ink2} style={{ flex: 1 }}>Сървър</T>
+        <ChevronDown size={18} color={colors.ink2} strokeWidth={2.2} style={{ transform: [{ rotate: advanced ? '180deg' : '0deg' }] }} />
+      </Pressable>
+      {advanced && (
+        <Card>
+          <Field label="Адрес" value={server} onChange={setSrv} keyboard="url" hint="По USB: http://localhost:8791 (след „adb reverse tcp:8791 tcp:8791“). По Wi-Fi: адресът на компютъра." />
+          <Button kind="glass" title="Провери връзката" onPress={async () => { await setServer(server); setErr(null); await refresh(); setOk('Адресът е запазен.'); }} />
+          {ok && <Banner kind="ok">{ok}</Banner>}
+        </Card>
+      )}
       <ErrorText>{err}</ErrorText>
-      <Small>Диспечерската конзола и проверката на удостоверения са на компютъра (сайта → Конзола).</Small>
-      <View style={{ height: 24 }} />
-    </ScrollView>
+      <T v="caption" center>Диспечерската конзола и проверката на удостоверения са на компютъра.</T>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: 16, gap: 14 },
-  account: { backgroundColor: colors.soft, borderRadius: 14, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 2 },
-  accName: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  accWhat: { fontSize: 14, color: colors.muted },
-  accMail: { fontSize: 12, color: '#444' },
-  input: { borderWidth: 1, borderColor: colors.line, borderRadius: 10, padding: 10, fontSize: 16, color: colors.ink },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 84, padding: 16, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  accIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
+  adv: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 4 },
 });

@@ -1,65 +1,152 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Building, ChevronRight, Hand, HeartPulse, LocateFixed, UserRound } from 'lucide-react-native';
+import { BlurTargetView } from 'expo-blur';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AedCard } from '@/components/AedCard';
 import { AedMap } from '@/components/AedMap';
+import { Pulse } from '@/components/Pulse';
+import { Banner, Glass, IconButton, Mark, T } from '@/components/ui';
 import { useAedState } from '@/lib/AedContext';
 import { homeFor, useSession } from '@/lib/session';
-import { colors } from '@/theme';
+import { colors, radius, shadow, space, type } from '@/theme';
 
+/**
+ * Home: the map is the product. One floating bar on top, one sheet below with the single most
+ * important fact (the nearest usable AED) and the single most important action (someone collapsed).
+ */
 export default function Home() {
   const { ranked, coords, locationStatus, offline } = useAedState();
   const { me } = useSession();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [focus, setFocus] = useState<{ lat: number; lon: number; zoom?: number } | null>(null);
+  // The map is the blur source for every glass surface on this screen (real blur on Android needs a target).
+  const target = useRef<ComponentRef<typeof View>>(null);
+
   const nearest = coords ? ranked[0] : undefined;
+  const aed = useMemo(() => ranked.find((a) => a.id === selected) ?? nearest, [ranked, selected, nearest]);
+  const openNow = ranked.filter((a) => a.open === 'open').length;
+  const sheetH = Math.min(440, height * 0.52);
+
+  const select = (id: string) => {
+    setSelected(id);
+    const a = ranked.find((x) => x.id === id);
+    if (a) setFocus({ lat: a.lat, lon: a.lon, zoom: 16 });
+  };
+  const profile = () => router.push(me ? homeFor(me.user.roles) : '/login');
+
+  // First location fix: frame the nearest AED above the sheet, once.
+  const framed = useRef(false);
+  useEffect(() => {
+    if (framed.current || !nearest) return;
+    framed.current = true;
+    setFocus({ lat: nearest.lat, lon: nearest.lon, zoom: 15.5 });
+  }, [nearest]);
 
   return (
     <View style={styles.fill}>
-      <AedMap aeds={ranked} coords={coords} />
+      <BlurTargetView ref={target} style={StyleSheet.absoluteFill}>
+        <AedMap aeds={ranked} coords={coords} selected={aed?.id} onSelect={select} focus={focus} padBottom={sheetH} />
+      </BlurTargetView>
+
+      {/* top bar */}
+      <View style={[styles.top, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <Glass strong padded={false} style={styles.brand} blurTarget={target}>
+          <View style={styles.brandRow}>
+            <Mark size={34} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.word} maxFontSizeMultiplier={1.3}>ДефиКарта</Text>
+              <T v="caption" numberOfLines={1}>Стара Загора · {openNow} от {ranked.length} отворени</T>
+            </View>
+          </View>
+        </Glass>
+        <IconButton icon={UserRound} label={me ? `Профил: ${me.user.name}` : 'Вход'} onPress={profile} size={56} />
+      </View>
 
       {(offline || locationStatus === 'denied') && (
-        <View style={styles.banner}>
-          <Text style={styles.bannerText}>
-            {locationStatus === 'denied'
-              ? 'Няма достъп до местоположение — показваме всички дефибрилатори в града.'
-              : 'Няма връзка — показваме последните запазени данни.'}
-          </Text>
+        <View style={[styles.notice, { top: insets.top + 84 }]}>
+          <Banner kind="caution">{locationStatus === 'denied' ? 'Без достъп до местоположението. Показваме всички дефибрилатори в града.' : 'Няма връзка. Показваме последните запазени данни.'}</Banner>
         </View>
       )}
 
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable
-          style={({ pressed }) => [styles.sos, pressed && { backgroundColor: colors.redDark }]}
-          onPress={() => router.push('/emergency')}
-          accessibilityRole="button"
-          accessibilityHint="Обаждане на 112 и указания за сърдечен масаж"
-        >
-          <Text style={styles.sosText}>Някой припадна</Text>
-          <Text style={styles.sosSub}>112 · масаж · най-близък AED</Text>
-        </Pressable>
-        {nearest && <AedCard aed={nearest} compact />}
-        <View style={styles.links}>
-          <Pressable style={styles.link} onPress={() => router.push('/volunteer')} accessibilityRole="button">
-            <Text style={styles.linkText}>🏃 Доброволец</Text>
-          </Pressable>
-          <Pressable style={styles.link} onPress={() => router.push(me ? homeFor(me.user.roles) : '/login')} accessibilityRole="button">
-            <Text style={styles.linkText}>{me ? `👤 ${me.user.name}` : '🔑 Вход'}</Text>
-          </Pressable>
+      {coords && (
+        <View style={[styles.locate, { bottom: sheetH + insets.bottom + 12 }]}>
+          <IconButton icon={LocateFixed} label="Към моето местоположение" onPress={() => { setSelected(null); setFocus({ ...coords, zoom: 15.5 }); }} />
         </View>
+      )}
+
+      {/* bottom sheet */}
+      <View style={[styles.sheetWrap, { paddingBottom: insets.bottom + 12 }]}>
+        <Glass strong style={styles.sheet} blurTarget={target}>
+          <View style={styles.handle} />
+          {aed ? (
+            <AedCard aed={aed} overline={selected && selected !== nearest?.id ? 'Избран дефибрилатор' : 'Най-близкият дефибрилатор'} />
+          ) : (
+            <T v="caption">Търсим местоположението ти, за да покажем най-близкия дефибрилатор…</T>
+          )}
+
+          <Pulse color={colors.red} size={0} rings={1} period={2600} grow={1.06} rect={{ width: '100%', height: 84, radius: radius.lg }} style={{ alignItems: 'stretch' }}>
+            <Pressable
+              onPress={() => router.push('/emergency')}
+              accessibilityRole="button"
+              accessibilityLabel="Някой припадна. Обаждане на 112, указания за масаж и най-близкия дефибрилатор"
+              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+              style={({ pressed }) => [styles.sos, pressed && { backgroundColor: colors.redDark }]}
+            >
+              <View style={styles.sosIcon}>
+                <HeartPulse size={28} color={colors.red} strokeWidth={2.4} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sosText} maxFontSizeMultiplier={1.3}>Някой припадна</Text>
+                <Text style={styles.sosSub} maxFontSizeMultiplier={1.3}>112 · масаж · най-близък AED</Text>
+              </View>
+              <ChevronRight size={26} color="#fff" strokeWidth={2.4} />
+            </Pressable>
+          </Pulse>
+
+          <View style={styles.tiles}>
+            <Tile icon={Hand} title="Доброволец" sub="Помагай наблизо" onPress={() => router.push('/volunteer')} />
+            <Tile icon={Building} title="Организации" sub="Поддръжка на AED" onPress={() => router.push(me?.user.roles.includes('aed_owner') ? '/org' : '/login')} />
+          </View>
+        </Glass>
       </View>
     </View>
   );
 }
 
+function Tile({ icon: Icon, title, sub, onPress }: { icon: typeof Hand; title: string; sub: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`} android_ripple={{ color: 'rgba(11,13,18,0.06)' }} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+      <View style={styles.tileIcon}>
+        <Icon size={20} color={colors.ink} strokeWidth={2.2} />
+      </View>
+      <View>
+        <T v="bodyStrong" numberOfLines={1}>{title}</T>
+        <T v="caption" numberOfLines={1}>{sub}</T>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  banner: { position: 'absolute', top: 12, left: 12, right: 12, backgroundColor: '#FFF4DC', borderRadius: 10, padding: 10 },
-  bannerText: { color: colors.amber, fontSize: 14, fontWeight: '600' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, gap: 10 },
-  sos: { backgroundColor: colors.red, borderRadius: 18, paddingVertical: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-  sosText: { color: '#fff', fontSize: 26, fontWeight: '800' },
-  sosSub: { color: '#FFE3E8', fontSize: 14, marginTop: 2 },
-  links: { flexDirection: 'row', gap: 10 },
-  link: { flex: 1, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, borderWidth: 1, borderColor: colors.line, paddingVertical: 10, alignItems: 'center' },
-  linkText: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  fill: { flex: 1, backgroundColor: colors.paper },
+  top: { position: 'absolute', left: space.lg, right: space.lg, flexDirection: 'row', gap: space.sm, alignItems: 'center' },
+  brand: { flex: 1, borderRadius: radius.pill },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingLeft: 12, paddingRight: 18 },
+  word: { ...(type.heading as object), fontSize: 18, lineHeight: 22, color: colors.ink },
+  notice: { position: 'absolute', left: space.lg, right: space.lg },
+  locate: { position: 'absolute', right: space.lg },
+  sheetWrap: { position: 'absolute', left: 10, right: 10, bottom: 0 },
+  sheet: { borderRadius: radius.xl },
+  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.lineStrong, marginTop: -4 },
+  sos: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 84, borderRadius: radius.lg, backgroundColor: colors.red, paddingHorizontal: 16, overflow: 'hidden', ...shadow.glow },
+  sosIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  sosText: { ...(type.title as object), fontSize: 24, lineHeight: 28, color: '#fff' },
+  sosSub: { ...(type.caption as object), color: 'rgba(255,255,255,0.85)', fontSize: 14 },
+  tiles: { flexDirection: 'row', gap: space.sm },
+  tile: { flex: 1, gap: 10, minHeight: 64, padding: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  tileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
 });

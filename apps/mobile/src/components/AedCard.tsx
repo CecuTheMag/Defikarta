@@ -1,56 +1,50 @@
 import { formatDistance, nativeWalkingUrl, openLabel, type RankedAed } from '@defikarta/core';
 import * as Linking from 'expo-linking';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme';
+import { MapPin, Route } from 'lucide-react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { colors, type } from '@/theme';
+import { Button, Pill, Row, T, type Tone } from './ui';
 
-const badge = {
-  open: { bg: '#E6F4EA', fg: colors.green },
-  closed: { bg: '#FDE7EA', fg: colors.redDark },
-  unknown: { bg: '#FFF4DC', fg: colors.amber },
-};
-
-export function AedCard({ aed, compact = false }: { aed: RankedAed; compact?: boolean }) {
+/**
+ * One defibrillator: how far, whether it can be used now, where exactly it is, and a route.
+ * The distance is the largest thing on the card, because it is the decision ("send someone or not").
+ */
+export function AedCard({ aed, tone = 'calm', overline }: { aed: RankedAed; tone?: Tone; overline?: string }) {
+  const night = tone === 'night';
   const hasDistance = Number.isFinite(aed.distanceM);
-  const b = badge[aed.open];
   const route = () => Linking.openURL(nativeWalkingUrl(Platform.OS === 'ios' ? 'ios' : 'android', aed));
-
   return (
-    <View style={styles.card} accessible accessibilityLabel={`Дефибрилатор: ${aed.name}`}>
-      <View style={styles.row}>
-        <Text style={styles.name} numberOfLines={2}>
-          {aed.name}
-        </Text>
+    <View style={{ gap: 10 }} accessible={false}>
+      {overline && <T v="overline" tone={tone}>{overline}</T>}
+      <View style={styles.top}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T v="heading" tone={tone} numberOfLines={2}>{aed.name}</T>
+          {aed.locationHint ? (
+            <Row gap={6} style={{ flexWrap: 'nowrap' }}>
+              <MapPin size={15} color={night ? colors.nightText2 : colors.ink2} strokeWidth={2.2} />
+              <T v="caption" tone={tone} style={{ flex: 1 }} numberOfLines={2}>{aed.locationHint}</T>
+            </Row>
+          ) : null}
+        </View>
         {hasDistance && (
-          <Text style={styles.dist}>
-            {formatDistance(aed.distanceM)} · ~{aed.walkMin} мин
-          </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[type.number, styles.dist, { color: night ? colors.nightText : colors.ink }]} maxFontSizeMultiplier={1.3}>{formatDistance(aed.distanceM)}</Text>
+            <T v="caption" tone={tone}>~{aed.walkMin} мин пеша</T>
+          </View>
         )}
       </View>
-      <View style={[styles.badge, { backgroundColor: b.bg }]}>
-        <Text style={[styles.badgeText, { color: b.fg }]}>{openLabel(aed.open)}</Text>
-      </View>
-      {aed.source === 'demo' && <Text style={[styles.tag, { color: '#2A3A9C' }]}>ДЕМО данни</Text>}
-      {aed.maintenance === 'tracked' && <Text style={[styles.tag, { color: colors.green }]}>✓ поддръжката се следи</Text>}
-      {aed.maintenance === 'overdue' && <Text style={[styles.tag, { color: colors.redDark }]}>⚠ поддръжката е просрочена</Text>}
-      {aed.locationHint ? <Text style={styles.hint}>📍 {aed.locationHint}</Text> : null}
-      {!compact && aed.note ? <Text style={styles.note}>{aed.note}</Text> : null}
-      <Pressable style={styles.routeBtn} onPress={route} accessibilityRole="button">
-        <Text style={styles.routeText}>Маршрут пеша →</Text>
-      </Pressable>
+      <Row>
+        <Pill status={aed.open} label={openLabel(aed.open)} />
+        {aed.maintenance === 'tracked' && <Pill status="ok" label="Поддръжката се следи" />}
+        {aed.maintenance === 'overdue' && <Pill status="overdue" label="Поддръжката е просрочена" />}
+        {aed.source === 'demo' && <Pill status="unknown" label="ДЕМО" />}
+      </Row>
+      <Button kind={night ? 'nightGhost' : 'glass'} icon={Route} title="Маршрут пеша" onPress={route} label={`Маршрут пеша до ${aed.name}`} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.bg, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.line, gap: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  name: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.ink },
-  dist: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  badge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  badgeText: { fontSize: 13, fontWeight: '700' },
-  hint: { fontSize: 15, color: colors.ink },
-  tag: { fontSize: 13, fontWeight: '700' },
-  note: { fontSize: 13, color: colors.muted },
-  routeBtn: { alignSelf: 'flex-start', paddingVertical: 6 },
-  routeText: { fontSize: 16, fontWeight: '700', color: colors.red },
+  top: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  dist: { fontSize: 28, lineHeight: 32, letterSpacing: -0.8 },
 });

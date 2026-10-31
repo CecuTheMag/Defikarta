@@ -14,7 +14,7 @@
     "android": {
       "package": "bg.defikarta.app",
       "adaptiveIcon": {
-        "backgroundColor": "#C8102E",
+        "backgroundColor": "#E1112D",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -42,10 +42,54 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Manrope",
+                "fontDefinitions": [
+                  {
+                    "path": "../../node_modules/@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "../../node_modules/@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "../../node_modules/@expo-google-fonts/manrope/600SemiBold/Manrope_600SemiBold.ttf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "../../node_modules/@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "../../node_modules/@expo-google-fonts/manrope/800ExtraBold/Manrope_800ExtraBold.ttf",
+                    "weight": 800
+                  }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": [
+              "../../node_modules/@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf",
+              "../../node_modules/@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf",
+              "../../node_modules/@expo-google-fonts/manrope/600SemiBold/Manrope_600SemiBold.ttf",
+              "../../node_modules/@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf",
+              "../../node_modules/@expo-google-fonts/manrope/800ExtraBold/Manrope_800ExtraBold.ttf"
+            ]
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "backgroundColor": "#F3F4F6"
   }
 }
