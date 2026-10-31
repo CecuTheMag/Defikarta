@@ -9,3 +9,5 @@ export * from './links';
 export * from './incident';
 export * from './dispatch';
 export * from './coverage';
+export * from './equipment';
+export * from './safety';

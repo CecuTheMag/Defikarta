@@ -117,7 +117,16 @@ function Live() {
               <span><b>{fmtDur(sel.public.aedEtaS)}</b> до AED</span>
               <span><b>{fmtDur(sel.public.emsEtaS)}</b> до линейка</span>
             </div>
-            <p className="small">Вълна {sel.wave + 1}/3 · старт {new Date(sel.createdAt).toLocaleTimeString('bg-BG')}</p>
+            <p className="small">Вълна {sel.wave + 1}/3 · старт {new Date(sel.createdAt).toLocaleTimeString('bg-BG')} · {sel.public.called112 ? '112 ✓' : '112 не е потвърден'}</p>
+            {sel.public.scene === 'unsafe' && <p className="danger">Мястото е опасно: известяването е спряно.</p>}
+            {live(sel) && (
+              <div className="seg">
+                <span className="small">Място:</span>
+                {(['safe', 'unknown', 'unsafe'] as const).map((sc) => (
+                  <button key={sc} className={`${sc === 'unsafe' ? 'warn ' : ''}${sel.public.scene === sc ? 'on' : ''}`} onClick={() => act(() => api('/api/rpc/set_scene', { incidentId: sel.id, scene: sc }))}>{{ safe: 'безопасно', unknown: 'неизвестно', unsafe: 'опасно — спри' }[sc]}</button>
+                ))}
+              </div>
+            )}
             <div className="row">
               {live(sel) && <button className="ghost" onClick={() => act(() => api('/api/rpc/close_incident', { incidentId: sel.id, cancel: true }))}>Отмени (фалшив сигнал)</button>}
               {sel.state !== 'CLOSED' && <button className="next" onClick={() => act(() => api('/api/rpc/close_incident', { incidentId: sel.id }))}>Затвори</button>}
@@ -206,10 +215,11 @@ function Verify() {
       {(certs.data?.certificates ?? []).map((c) => (
         <section key={c.userId} className="card">
           <strong>{c.name}</strong> <span className="small">{c.email} · {c.scope === 'street' ? 'улични известия (18+)' : 'само училищни учения'}</span>
-          <div className="small">{c.certificate.issuer} · {c.certificate.issuedOn} · {c.certificate.status}</div>
+          <div className="small">{c.certificate.issuer} · издадено {c.certificate.issuedOn} · {c.certificate.status}{c.verifiedUntil ? ` · валидно до ${c.verifiedUntil}` : ''}</div>
+          {!c.recognizedIssuer && <p className="caution">Непознат издател — провери удостоверението ръчно (или при издателя).</p>}
           {c.certificate.status === 'pending' && (
             <div className="row">
-              <button className="primary" onClick={() => act(() => api('/api/rpc/review_certificate', { userId: c.userId, decision: 'approve', verifiedUntil: '2027-12-31' }))}>Одобри до 12.2027</button>
+              <button className="primary" disabled={!c.validUntil || c.validUntil < new Date().toISOString().slice(0, 10)} onClick={() => act(() => api('/api/rpc/review_certificate', { userId: c.userId, decision: 'approve' }))}>{c.validUntil ? `Одобри до ${c.validUntil}` : 'Няма дата'}</button>
               <button className="ghost" onClick={() => act(() => api('/api/rpc/review_certificate', { userId: c.userId, decision: 'reject', note: 'нечетимо' }))}>Откажи</button>
             </div>
           )}

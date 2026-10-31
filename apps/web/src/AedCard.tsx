@@ -13,6 +13,8 @@ export function AedCard({ aed, from }: { aed: RankedAed; from: LatLon | null }) 
       </div>
       <span className={`badge badge-${aed.open}`}>{openLabel(aed.open)}</span>
       {aed.source === 'demo' && <span className="badge badge-demo">ДЕМО данни</span>}
+      {aed.maintenance === 'tracked' && <span className="badge badge-tracked">✓ поддръжката се следи</span>}
+      {aed.maintenance === 'overdue' && <span className="badge badge-overdue">⚠ поддръжката е просрочена</span>}
       {aed.locationHint && <p className="hint">📍 {aed.locationHint}</p>}
       {aed.note && <p className="note">{aed.note}</p>}
       <a className="route" href={osmWalkingUrl(from, aed)} target="_blank" rel="noreferrer">

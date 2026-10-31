@@ -67,7 +67,7 @@ export function App({ config }: { config: Config | null }) {
         <main className="page">
           <p className="step">Стъпка 2 от 2</p>
           <Cpr />
-          {config?.flags.public_alerts && <AlertPeople coords={coords} demoCenter={config.region.center ?? STARA_ZAGORA_CENTER} />}
+          {config?.flags.public_alerts && <AlertPeople coords={coords} demoCenter={config.region.center ?? STARA_ZAGORA_CENTER} called112 /* step 2 is only reached through „Обадих се“ */ />}
           {nearest && (
             <section>
               <h2 className="aed-title">Пратете някой за този дефибрилатор:</h2>

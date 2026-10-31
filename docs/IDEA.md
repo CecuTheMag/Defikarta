@@ -19,7 +19,7 @@ This document merges two earlier write-ups into one project:
 |---|---|
 | **AEDs in Bulgaria are not mapped**, and nobody is obliged to report them | Bulgarian Red Cross, via the EENA AED legislation report |
 | The law was changed so that **non-medics can use an AED** | BTA |
-| The Ministry of Health ran a consultation (Apr–May 2026) on an **ordinance defining the public places that must have AEDs**, so more devices are coming | strategy.bg |
+| The Ministry of Health ran a consultation (Apr–May 2026) on an **ordinance defining the public places that *may* host AEDs**. It does not oblige anyone to install one, but an AED in a public place must be signed, accessible and maintained to the manufacturer's requirements | mh.government.bg (see [SUNDAY.md §2](SUNDAY.md#2-законът-какво-е-задължително-и-какво-не)) |
 | **Sept 2026:** Bulgaria joined **EuReCa**, the European registry of out-of-hospital cardiac arrest | Eurocom, БНР |
 | Immediate CPR **doubles to quadruples** survival. Every minute without CPR cuts survival by roughly 10% | firstaid.bg; ERC |
 | Brain damage starts within **4–6 minutes** without circulation. Ambulances often need 10–30 min, more outside cities | ERC; ЦСМП response times *(ask ЦСМП Стара Загора for the real number)* |
@@ -53,7 +53,8 @@ This document merges two earlier write-ups into one project:
 | 112 + ambulance | Essential, and always first. Often too slow for the first minutes |
 | Heartrunner (SE/DK), GoodSAM (UK), PulsePoint (US), AED4EU, the Polish "AED map" app | Not operating in Bulgaria, no Bulgarian data, tied to their own national dispatch systems |
 | OSM `emergency=defibrillator` | The data format exists, but Bulgaria has almost no data in it. **We fill it** |
-| Bulgarian Red Cross / „3 минути" | They train people and advocate, but run no map and no alert network |
+| Bulgarian Red Cross | Trains people and advocates; no alert network |
+| firstaid.bg map by „Първите три минути“ | Sofia first, growing nationwide; owner-reported, no guarantee of condition; no app, no maintenance tracking, no alerts found. A partner, not a rival: they issue the certificates our verifiers accept (see [SUNDAY.md §3](SUNDAY.md#3-конкуренция-firstaidbg-и-първите-три-минути)) |
 
 The Swedish evidence that volunteer dispatch works: Ringh et al., *NEJM* 2015 (bystander CPR 62% with SMS-dispatched volunteers vs 48% without).
 

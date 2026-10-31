@@ -3,8 +3,8 @@ export interface LatLon {
   lon: number;
 }
 
-/** Where an AED record came from. OSM is the long-term source of truth; 'local' = verified here, not in OSM yet; 'demo' = fake data for the drill environment only. */
-export type AedSource = 'osm' | 'seed' | 'local' | 'demo';
+/** Where an AED record came from. OSM is the long-term source of truth; 'local' = verified here, not in OSM yet; 'org' = listed by the organisation that maintains it; 'demo' = fake data for the drill environment only. */
+export type AedSource = 'osm' | 'seed' | 'local' | 'org' | 'demo';
 
 export interface Aed extends LatLon {
   /** Stable id: "osm:node/123" or "seed:<slug>". */
@@ -23,6 +23,8 @@ export interface Aed extends LatLon {
   verifiedAt?: string;
   /** Free-text note about the record itself (provenance, caveats). */
   note?: string;
+  /** Only for devices whose owner tracks maintenance here: 'tracked' = checks up to date, 'overdue' = something is late. */
+  maintenance?: 'tracked' | 'overdue';
 }
 
 export type OpenState = 'open' | 'closed' | 'unknown';

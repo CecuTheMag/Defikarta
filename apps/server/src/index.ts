@@ -1,6 +1,29 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { coverageGrid, distanceM, openState, recommendPlacements, STARA_ZAGORA_CENTER, type CoverageScenario, type LatLon } from '@defikarta/core';
-import { REGION, Store, type Role, type Submission, type User } from './db';
+import {
+  certValidUntil,
+  CHECKLIST_LABEL,
+  coverageGrid,
+  CPR_QUIZ,
+  distanceM,
+  equipmentChecks,
+  gradeQuiz,
+  isoDate,
+  issuerRecognized,
+  KIND_LABEL,
+  openState,
+  publicPlaceGaps,
+  recommendPlacements,
+  RETAIN_PRECISE_DAYS,
+  STARA_ZAGORA_CENTER,
+  TERMS_VERSION,
+  VOLUNTEER_TERMS,
+  worstStatus,
+  type CheckKey,
+  type CoverageScenario,
+  type EquipmentKind,
+  type LatLon,
+} from '@defikarta/core';
+import { REGION, Store, type Equipment, type Role, type Submission, type User } from './db';
 import { HttpError, Service, SIM_SPEED } from './service';
 
 const PORT = Number(process.env.PORT ?? 8791);
@@ -18,7 +41,20 @@ setInterval(() => svc.tick(), 1000);
 const CITY_BBOX: [number, number, number, number] = [42.405, 25.595, 42.445, 25.67];
 
 // ---------- plumbing ----------
+/** A non-JSON response (CSV export). */
+class Raw {
+  constructor(
+    public type: string,
+    public body: string,
+    public filename?: string,
+  ) {}
+}
+
 function send(res: ServerResponse, status: number, body: unknown) {
+  if (body instanceof Raw) {
+    res.writeHead(status, { 'content-type': body.type, 'cache-control': 'no-store', ...(body.filename ? { 'content-disposition': `attachment; filename="${body.filename}"` } : {}) });
+    return res.end(body.body);
+  }
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 }
@@ -60,9 +96,17 @@ const pos = (b: Record<string, any>): LatLon => ({ lat: num(b.lat, 'lat'), lon: 
 const text = (v: unknown, max = 200): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined);
 
 function publicAed(a: (typeof store.aeds)[number]) {
-  // Private fields (owner contact, expiry dates) never leave the server.
-  return { ...a, open: openState(a.openingHours) };
+  // Private fields (owner contact, expiry dates) never leave the server: only "tracked" or "overdue" for org devices.
+  const { equipmentId, ...rest } = a;
+  const eq = equipmentId ? store.equipment.find((e) => e.id === equipmentId) : undefined;
+  const s = eq && worstStatus(equipmentChecks('aed', eq.dates));
+  return { ...rest, open: openState(a.openingHours), ...(eq ? { maintenance: s === 'overdue' || s === 'missing' ? 'overdue' : 'tracked' } : {}) };
 }
+
+const dateStr = (v: unknown, name: string): string => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new HttpError(400, `Невалидна дата: ${name}`);
+  return v;
+};
 
 /**
  * Public buildings from OSM (schools, pharmacies, ...) as candidate spots for the "next AEDs" recommender, cached.
@@ -118,7 +162,38 @@ route('POST', '/api/login', ({ body }) => {
 
 route('GET', '/api/me', ({ req }) => {
   const u = need(req);
-  return { user: u, responder: store.responders.get(u.id) ?? null };
+  const r = store.responders.get(u.id);
+  return { user: u, responder: r ? { ...r, readiness: svc.readiness(r), recognizedIssuer: r.certificate ? issuerRecognized(r.certificate.issuer) : false } : null };
+});
+
+// --- personal data (mentor's question 3): see and delete what we hold about you
+route('GET', '/api/me/data', ({ req }) => {
+  const u = need(req);
+  return {
+    exportedAt: new Date().toISOString(),
+    user: u,
+    responder: store.responders.get(u.id) ?? null,
+    offers: store.offers.filter((o) => o.responderId === u.id).map(({ botAt, botAccepts, ...o }) => o),
+    assignments: store.assignments.filter((a) => a.responderId === u.id),
+    preciseTracks: store.assignments.filter((a) => a.responderId === u.id && store.tracks.has(a.id)).map((a) => ({ assignmentId: a.id, points: store.tracks.get(a.id)!.length })),
+    audit: store.audit.filter((a) => a.actor === u.id),
+    retention: { preciseIncidentLocationDays: RETAIN_PRECISE_DAYS, tracks: 'изтриват се при затваряне на случая' },
+  };
+});
+
+route('POST', '/api/rpc/delete_me', ({ req }) => {
+  const u = need(req);
+  if (svc.activeAssignment(u.id)) throw new HttpError(409, 'Имаш активен случай. Изтрий профила след като приключи.');
+  if (u.email.endsWith('@drill.defikarta.bg')) throw new HttpError(403, 'Тестовите профили не се изтриват (ползвай „Нулирай учебната среда“).');
+  store.responders.delete(u.id);
+  store.users.delete(u.id);
+  for (const [t, id] of store.tokens) if (id === u.id) store.tokens.delete(t);
+  for (const o of store.offers) if (o.responderId === u.id) o.responderId = 'deleted';
+  for (const a of store.assignments) if (a.responderId === u.id) a.responderId = 'deleted';
+  for (const a of store.audit) if (a.actor === u.id) a.actor = 'deleted';
+  svc.audit('deleted', 'delete_me');
+  svc.changed();
+  return { ok: true };
 });
 
 route('GET', '/api/aeds', () => ({ aeds: store.aeds.filter((a) => a.status !== 'retired').map(publicAed) }));
@@ -197,7 +272,9 @@ route('POST', '/api/rpc/register_responder', ({ req, body }) => {
 
 route('GET', '/api/certificates', ({ req }) => {
   need(req, 'verifier');
-  const list = [...store.responders.values()].filter((r) => !r.bot && r.certificate).map((r) => ({ userId: r.userId, name: store.users.get(r.userId)?.name, email: store.users.get(r.userId)?.email, scope: r.scope, status: r.status, certificate: r.certificate }));
+  const list = [...store.responders.values()]
+    .filter((r) => !r.bot && r.certificate)
+    .map((r) => ({ userId: r.userId, name: store.users.get(r.userId)?.name, email: store.users.get(r.userId)?.email, scope: r.scope, status: r.status, verifiedUntil: r.verifiedUntil, certificate: r.certificate, recognizedIssuer: issuerRecognized(r.certificate!.issuer), validUntil: /^\d{4}-\d{2}-\d{2}$/.test(r.certificate!.issuedOn) ? certValidUntil(r.certificate!.issuedOn) : null }));
   return { certificates: list };
 });
 
@@ -206,9 +283,14 @@ route('POST', '/api/rpc/review_certificate', ({ req, body }) => {
   const r = store.responders.get(String(body.userId));
   if (!r?.certificate) throw new HttpError(404, 'Няма такава заявка.');
   if (body.decision === 'approve') {
+    // Question 1: validity follows the course date (CERT_VALID_YEARS); a verifier may only shorten it.
+    const max = /^\d{4}-\d{2}-\d{2}$/.test(r.certificate.issuedOn) ? certValidUntil(r.certificate.issuedOn) : null;
+    if (!max) throw new HttpError(400, 'Удостоверението няма валидна дата на издаване.');
+    if (max < isoDate(new Date())) throw new HttpError(409, `Удостоверението е изтекло на ${max}. Нужен е опреснителен курс.`);
+    const asked = text(body.verifiedUntil, 10);
     r.status = 'verified';
     r.certificate.status = 'approved';
-    r.verifiedUntil = text(body.verifiedUntil, 10) ?? '2027-12-31';
+    r.verifiedUntil = asked && asked < max ? asked : max;
     const user = store.users.get(r.userId)!;
     if (!user.roles.includes('responder')) user.roles.push('responder');
   } else {
@@ -225,6 +307,8 @@ route('POST', '/api/rpc/set_availability', ({ req, body }) => {
   const r = store.responders.get(u.id);
   if (!r || r.status !== 'verified') throw new HttpError(403, 'Още не си потвърден доброволец.');
   if (r.certificate?.status !== 'approved' && !r.bot) throw new HttpError(403, 'Удостоверението не е одобрено.');
+  const missing = svc.readiness(r).missing;
+  if (body.mode === 'around' && missing.length && !r.bot) throw new HttpError(403, `Първо довърши: ${missing.map((m) => ({ certificate: 'валидно удостоверение', terms: 'условия', consent: 'съгласие за местоположение', quiz: 'проверка на знанията' })[m]).join(', ')}.`);
   r.availability = body.mode === 'around' ? 'around' : 'off';
   if (body.lat != null) {
     r.pos = pos(body);
@@ -233,6 +317,66 @@ route('POST', '/api/rpc/set_availability', ({ req, body }) => {
   if (r.availability === 'around' && !r.pos) throw new HttpError(400, 'Задай позиция.');
   svc.changed();
   return { availability: r.availability, pos: r.pos };
+});
+
+// --- volunteer onboarding (mentor's questions 1–2, 5)
+route('GET', '/api/responder/terms', () => ({ version: TERMS_VERSION, terms: VOLUNTEER_TERMS }));
+
+route('POST', '/api/rpc/accept_terms', ({ req, body }) => {
+  const u = need(req, 'responder');
+  const r = store.responders.get(u.id);
+  if (!r) throw new HttpError(404, 'Не си доброволец.');
+  if (body.version !== TERMS_VERSION) throw new HttpError(409, 'Условията са променени. Прочети новата версия.');
+  if (body.locationConsent !== true) throw new HttpError(400, 'Без съгласие за местоположение не можем да те известяваме.');
+  r.termsVersion = TERMS_VERSION;
+  r.termsAt = Date.now();
+  r.locationConsentAt = Date.now();
+  svc.audit(u.id, `accept_terms:${TERMS_VERSION}`);
+  return { ok: true };
+});
+
+route('POST', '/api/rpc/withdraw_consent', ({ req }) => {
+  const u = need(req, 'responder');
+  const r = store.responders.get(u.id);
+  if (!r) throw new HttpError(404, 'Не си доброволец.');
+  r.locationConsentAt = undefined;
+  r.availability = 'off';
+  r.pos = undefined;
+  svc.audit(u.id, 'withdraw_consent');
+  svc.changed();
+  return { ok: true };
+});
+
+route('GET', '/api/responder/quiz', () => ({ questions: CPR_QUIZ.map(({ q, options }) => ({ q, options })) }));
+
+route('POST', '/api/rpc/pass_quiz', ({ req, body }) => {
+  const u = need(req, 'responder');
+  const r = store.responders.get(u.id);
+  if (!r) throw new HttpError(404, 'Не си доброволец.');
+  const answers = Array.isArray(body.answers) ? body.answers.map(Number) : [];
+  const g = gradeQuiz(answers);
+  if (g.passed) r.quizPassedAt = Date.now();
+  svc.audit(u.id, `quiz:${g.correct}/${CPR_QUIZ.length}`);
+  return { ...g, total: CPR_QUIZ.length, wrong: CPR_QUIZ.flatMap((q, i) => (answers[i] === q.answer ? [] : [i])) };
+});
+
+route('POST', '/api/rpc/set_quiet_hours', ({ req, body }) => {
+  const u = need(req, 'responder');
+  const r = store.responders.get(u.id);
+  if (!r) throw new HttpError(404, 'Не си доброволец.');
+  if (body.from == null) r.quiet = undefined;
+  else {
+    const from = num(body.from, 'from');
+    const to = num(body.to, 'to');
+    if (from < 0 || from > 23 || to < 0 || to > 23) throw new HttpError(400, 'Часовете са от 0 до 23.');
+    r.quiet = { from, to };
+  }
+  return { quiet: r.quiet ?? null };
+});
+
+route('POST', '/api/rpc/withdraw_unsafe', ({ req, body }) => {
+  const u = need(req, 'responder');
+  return svc.withdrawUnsafe(u.id, String(body.assignmentId));
 });
 
 route('GET', '/api/responder/state', ({ req }) => {
@@ -245,17 +389,19 @@ route('GET', '/api/responder/state', ({ req }) => {
       const aed = o.aedId ? store.aeds.find((a) => a.id === o.aedId) : undefined;
       const d = r.pos ? distanceM(r.pos, inc.pos) : 0;
       // Push-like payload: only a distance band until the offer is accepted.
-      return { id: o.id, role: o.role, drill: true, band: `~${Math.max(50, Math.round(d / 50) * 50)} м`, expiresAt: o.expiresAt, suggestedAed: aed ? { name: aed.name } : null };
+      return { id: o.id, role: o.role, drill: true, band: `~${Math.max(50, Math.round(d / 50) * 50)} м`, expiresAt: o.expiresAt, suggestedAed: aed ? { name: aed.name } : null, called112: inc.called112, caution: inc.scene !== 'safe' };
     });
   const a = store.assignments.find((x) => x.responderId === u.id && x.status !== 'released');
   let active = null;
   if (a) {
     const inc = store.incidents.get(a.incidentId)!;
     const aed = a.aedId ? store.aeds.find((x) => x.id === a.aedId) : undefined;
-    active = { assignment: a, incident: { id: inc.id, state: inc.state, pos: inc.pos, source: inc.source }, aed: aed ? { name: aed.name, lat: aed.lat, lon: aed.lon, locationHint: aed.locationHint } : null };
+    active = { assignment: a, incident: { id: inc.id, state: inc.state, pos: inc.pos, source: inc.source, scene: inc.scene, called112: inc.called112 }, aed: aed ? { name: aed.name, lat: aed.lat, lon: aed.lon, locationHint: aed.locationHint } : null };
     svc.audit(u.id, 'view_precise_location', inc.id);
   }
-  return { responder: r, offers, active };
+  // After a case: a short debrief card for 30 minutes (support contact to be agreed with БЧК).
+  const last = active ? undefined : store.assignments.filter((x) => x.responderId === u.id && x.status === 'released' && Date.now() - x.updatedAt < 30 * 60_000).at(-1);
+  return { responder: { ...r, readiness: svc.readiness(r) }, offers, active, debrief: last ? { at: last.updatedAt, unsafe: !!last.unsafeWithdraw } : null };
 });
 
 route('POST', '/api/rpc/respond_offer', ({ req, body }) => {
@@ -281,7 +427,8 @@ route('POST', '/api/rpc/create_incident', ({ req, body }) => {
   const u = userOf(req);
   const source = body.source === 'drill' ? 'drill' : 'bystander';
   if (source === 'drill') need(req, 'dispatcher');
-  const inc = svc.createIncident({ source, pos: pos(body), label: text(body.label, 80), createdBy: u?.id ?? null, deviceId: text(body.deviceId, 60), key: text(body.key, 80) });
+  const scene = (['safe', 'unknown', 'unsafe'] as const).find((x) => x === body.scene);
+  const inc = svc.createIncident({ source, pos: pos(body), label: text(body.label, 80), createdBy: u?.id ?? null, deviceId: text(body.deviceId, 60), key: text(body.key, 80), called112: body.called112 === true, scene });
   svc.audit(u?.id ?? 'anon', `create_incident:${source}`, inc.id);
   return { id: inc.id, state: inc.state };
 });
@@ -300,6 +447,17 @@ route('POST', '/api/rpc/close_incident', ({ req, body }) => {
   if (!creator) need(req, 'dispatcher');
   svc.closeIncident(inc, u?.id ?? 'bystander', body.cancel ? 'cancelled' : 'closed');
   return { state: inc.state };
+});
+
+route('POST', '/api/rpc/set_scene', ({ req, body }) => {
+  const u = need(req, 'dispatcher');
+  const inc = store.incidents.get(String(body.incidentId));
+  if (!inc) throw new HttpError(404, 'Няма такъв случай.');
+  const scene = (['safe', 'unknown', 'unsafe'] as const).find((x) => x === body.scene);
+  if (!scene) throw new HttpError(400, 'Невалидна стойност.');
+  svc.setScene(inc, scene, u.id);
+  svc.audit(u.id, `set_scene:${scene}`, inc.id);
+  return { scene };
 });
 
 route('GET', '/api/console/state', ({ req }) => {
@@ -345,6 +503,118 @@ route('GET', '/api/coverage', async ({ req, url }) => {
   return { scenario, stepM: result.stepM, within5: result.within5, cells: result.cells.map((c) => [Number(c.lat.toFixed(5)), Number(c.lon.toFixed(5)), c.min]), placements: picks, placementsAvailable: sites.length > 0, aedCount: usable.length, center: STARA_ZAGORA_CENTER };
 });
 
+// --- organisations: equipment registry, maintenance, reminders, reports
+function orgOf(u: User) {
+  const org = store.orgs.find((o) => o.ownerIds.includes(u.id)) ?? (u.roles.includes('admin') ? store.orgs[0] : undefined);
+  if (!org) throw new HttpError(404, 'Профилът не е свързан с организация.');
+  return org;
+}
+
+function equipmentView(eq: Equipment) {
+  const checks = equipmentChecks(eq.kind, eq.dates);
+  return { ...eq, checks, status: worstStatus(checks), gaps: eq.kind === 'aed' ? publicPlaceGaps(eq.publicPlace, eq.dates) : [] };
+}
+
+function ownEquipment(u: User, id: unknown): Equipment {
+  const org = orgOf(u);
+  const eq = store.equipment.find((e) => e.id === id && e.orgId === org.id);
+  if (!eq) throw new HttpError(404, 'Няма такова оборудване.');
+  return eq;
+}
+
+route('GET', '/api/org', ({ req }) => {
+  const u = need(req, 'aed_owner');
+  const org = orgOf(u);
+  const items = store.equipment.filter((e) => e.orgId === org.id).map(equipmentView);
+  const count = (s: string) => items.filter((i) => i.status === s).length;
+  return {
+    org,
+    sites: store.sites.filter((s) => s.orgId === org.id),
+    equipment: items,
+    summary: { total: items.length, ok: count('ok'), soon: count('soon'), overdue: count('overdue'), missing: count('missing') },
+    outbox: store.outbox.filter((m) => org.ownerIds.some((id) => store.users.get(id)?.email === m.to)).slice(-25).reverse(),
+    log: store.maintenance.filter((m) => items.some((i) => i.id === m.equipmentId)).slice(-25).reverse(),
+    checklistLabels: CHECKLIST_LABEL,
+  };
+});
+
+route('POST', '/api/rpc/log_maintenance', ({ req, body }) => {
+  const u = need(req, 'aed_owner');
+  const eq = ownEquipment(u, body.equipmentId);
+  const action = body.action as CheckKey;
+  const date = body.date ? dateStr(body.date, 'date') : isoDate(new Date());
+  if (date > isoDate(new Date())) throw new HttpError(400, 'Датата на дейността не може да е в бъдещето.');
+  // Replacing a part records its new printed expiry; inspections and services record when they were done.
+  const expiryField = { battery: 'batteryExpires', pads: 'padsExpires', contents: 'contentsExpire' } as const;
+  const doneField = { inspection: 'lastInspection', service: 'lastService', hydro: 'lastHydro' } as const;
+  if (action in expiryField) eq.dates[expiryField[action as keyof typeof expiryField]] = dateStr(body.newExpiry, 'newExpiry');
+  else if (action in doneField) eq.dates[doneField[action as keyof typeof doneField]] = date;
+  else throw new HttpError(400, 'Невалидно действие.');
+  store.maintenance.push({ id: store.id('mnt'), equipmentId: eq.id, date, by: u.name, action, note: text(body.note) });
+  svc.audit(u.id, `maintenance:${action}`, eq.id);
+  svc.changed();
+  return { equipment: equipmentView(eq) };
+});
+
+route('POST', '/api/rpc/add_equipment', ({ req, body }) => {
+  const u = need(req, 'aed_owner');
+  const org = orgOf(u);
+  const site = store.sites.find((s) => s.id === body.siteId && s.orgId === org.id);
+  if (!site) throw new HttpError(400, 'Избери обект.');
+  const kind = body.kind as EquipmentKind;
+  if (!(kind in KIND_LABEL)) throw new HttpError(400, 'Невалиден вид.');
+  const model = text(body.model, 80);
+  if (!model) throw new HttpError(400, 'Добави модел.');
+  const d = (k: string) => (body[k] ? dateStr(body[k], k) : undefined);
+  const eq: Equipment = { id: store.id('eq'), orgId: org.id, siteId: site.id, kind, model, serial: text(body.serial, 40), locationHint: text(body.locationHint, 120), dates: { batteryExpires: d('batteryExpires'), padsExpires: d('padsExpires'), contentsExpire: d('contentsExpire'), lastInspection: d('lastInspection'), lastService: d('lastService'), lastHydro: d('lastHydro') } };
+  store.equipment.push(eq);
+  svc.audit(u.id, 'add_equipment', eq.id);
+  svc.changed();
+  return { equipment: equipmentView(eq) };
+});
+
+route('POST', '/api/rpc/set_listing', ({ req, body }) => {
+  const u = need(req, 'aed_owner');
+  const eq = ownEquipment(u, body.equipmentId);
+  if (eq.kind !== 'aed') throw new HttpError(400, 'Само дефибрилатори се показват на картата.');
+  const c = body.checklist ?? {};
+  eq.publicPlace = { signage: !!c.signage, directionSigns: !!c.directionSigns, instructionsBg: !!c.instructionsBg, accessible: !!c.accessible };
+  eq.openingHours = text(body.openingHours, 120) ?? eq.openingHours;
+  const listed = store.aeds.find((a) => a.id === eq.listedAedId);
+  if (body.listed) {
+    const site = store.sites.find((s) => s.id === eq.siteId)!;
+    const org = orgOf(u);
+    const rec = { id: eq.listedAedId ?? `org:${eq.id}`, source: 'org' as const, status: 'verified' as const, equipmentId: eq.id, name: `${org.name}, ${site.name}`, lat: site.lat, lon: site.lon, openingHours: eq.openingHours, locationHint: eq.locationHint, access: 'yes' };
+    if (listed) Object.assign(listed, rec);
+    else store.aeds.push(rec);
+    eq.listedAedId = rec.id;
+  } else if (listed) listed.status = 'retired';
+  svc.audit(u.id, `set_listing:${!!body.listed}`, eq.id);
+  svc.changed();
+  return { equipment: equipmentView(eq) };
+});
+
+route('POST', '/api/rpc/run_reminders', ({ req }) => {
+  need(req, 'aed_owner');
+  return { sent: svc.runReminders() };
+});
+
+route('GET', '/api/org/report.csv', ({ req }) => {
+  const u = need(req, 'aed_owner');
+  const org = orgOf(u);
+  const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const STATUS = { ok: 'наред', soon: 'скоро', overdue: 'просрочено', missing: 'няма запис' };
+  const rows = [['Обект', 'Вид', 'Модел', 'Сериен №', 'Място', 'Проверка', 'Срок', 'Статус', 'На картата', 'Липси по наредбата'].map(q).join(',')];
+  for (const eq of store.equipment.filter((e) => e.orgId === org.id)) {
+    const v = equipmentView(eq);
+    const site = store.sites.find((s) => s.id === eq.siteId)?.name;
+    const listed = store.aeds.some((a) => a.id === eq.listedAedId && a.status !== 'retired');
+    for (const c of v.checks) rows.push([site, KIND_LABEL[eq.kind], eq.model, eq.serial, eq.locationHint, c.label, c.due ?? '', STATUS[c.status], eq.kind === 'aed' ? (listed ? 'да' : 'не') : '', v.gaps.map((g) => CHECKLIST_LABEL[g]).join('; ')].map(q).join(','));
+  }
+  svc.audit(u.id, 'export_report');
+  return new Raw('text/csv; charset=utf-8', '\ufeff' + rows.join('\r\n'), `defikarta-${isoDate(new Date())}.csv`);
+});
+
 // --- admin
 route('POST', '/api/admin/flags', ({ req, body }) => {
   const u = need(req, 'admin');
@@ -365,6 +635,7 @@ route('POST', '/api/admin/reset', ({ req }) => {
   const u = need(req, 'admin');
   store.reset();
   store.tokens.clear();
+  svc.runReminders();
   svc.changed();
   return { ok: true, note: `reset by ${u.id}` };
 });

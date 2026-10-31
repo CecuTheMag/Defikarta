@@ -1,23 +1,23 @@
 import { useState } from 'react';
-import { api, setToken } from '../api';
+import { api, setToken, type Role } from '../api';
 
 const ACCOUNTS = [
   ['responder', 'Доброволец', 'получава известия, приема „Тръгвам“ / „Нося AED“'],
   ['dispatcher', 'Диспечер', 'конзола, живa карта, „Стартирай учение“'],
   ['verifier', 'Верификатор', 'одобрява AED предложения и удостоверения'],
-  ['owner', 'Собственик на AED', 'собствени устройства'],
+  ['owner', 'Отговорник безопасност (фирма)', 'AED, пожарогасители и аптечки: срокове, напомняния, отчет'],
   ['admin', 'Администратор', 'всичко + флагове, одит, нулиране'],
 ] as const;
 
-export function Login({ onDone }: { onDone: () => void }) {
+export function Login({ onDone }: { onDone: (roles: Role[]) => void }) {
   const [email, setEmail] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
   async function login(e: string) {
     try {
-      const r = await api<{ token: string }>('/api/login', { email: e });
+      const r = await api<{ token: string; user: { roles: Role[] } }>('/api/login', { email: e });
       setToken(r.token);
-      onDone();
+      onDone(r.user.roles);
     } catch (x) {
       setErr((x as Error).message);
     }

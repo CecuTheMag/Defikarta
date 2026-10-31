@@ -1,17 +1,26 @@
 import {
+  aedUsable,
+  coarsen,
   DEFAULT_DISPATCH,
   distanceM,
+  equipmentChecks,
   estimateWalkS,
+  inQuietHours,
   isActive,
   nextAssignmentStatus,
   nextIncidentState,
   openState,
   planWave,
+  QUIZ_VALID_DAYS,
+  reminderStage,
+  RETAIN_PRECISE_DAYS,
   STARA_ZAGORA_BBOX,
+  TERMS_VERSION,
   type DispatchAed,
   type DispatchConfig,
   type IncidentEvent,
   type LatLon,
+  type SceneSafety,
 } from '@defikarta/core';
 import { REGION, Store, type Assignment, type Incident, type Offer, type Responder } from './db';
 
@@ -88,6 +97,8 @@ export class Service {
     const out: Responder[] = [];
     for (const r of this.s.responders.values()) {
       if (r.status !== 'verified' || (r.verifiedUntil && r.verifiedUntil < today)) continue;
+      if (!r.bot && this.readiness(r).missing.length) continue;
+      if (inQuietHours(r.quiet)) continue;
       if (r.availability !== 'around' || !r.pos) continue;
       if (!r.bot && Date.now() - (r.posAt ?? 0) > 30 * 60_000) continue; // presence expires after 30 min
       if (r.scope === 'street' && inc.source !== 'drill' && !this.s.flags.street_alerts) continue;
@@ -97,8 +108,22 @@ export class Service {
     return out;
   }
 
+  /**
+   * What a volunteer still has to do before alerts can reach them (mentor's questions 1–3):
+   * valid certificate, current terms accepted, location consent, knowledge check within QUIZ_VALID_DAYS.
+   */
+  readiness(r: Responder) {
+    const today = new Date().toISOString().slice(0, 10);
+    const missing: ('certificate' | 'terms' | 'consent' | 'quiz')[] = [];
+    if (r.status !== 'verified' || r.certificate?.status !== 'approved' || (r.verifiedUntil && r.verifiedUntil < today)) missing.push('certificate');
+    if (r.termsVersion !== TERMS_VERSION) missing.push('terms');
+    if (!r.locationConsentAt) missing.push('consent');
+    if (!r.quizPassedAt || Date.now() - r.quizPassedAt > QUIZ_VALID_DAYS * 86_400_000) missing.push('quiz');
+    return { missing, termsVersion: TERMS_VERSION, quizValidUntil: r.quizPassedAt ? r.quizPassedAt + QUIZ_VALID_DAYS * 86_400_000 : null };
+  }
+
   // ---------- incidents ----------
-  createIncident(input: { source: Incident['source']; pos: LatLon; label?: string; createdBy: string | null; deviceId?: string; key?: string }): Incident {
+  createIncident(input: { source: Incident['source']; pos: LatLon; label?: string; createdBy: string | null; deviceId?: string; key?: string; called112?: boolean; scene?: SceneSafety }): Incident {
     if (!inBbox(input.pos)) throw new HttpError(400, 'Мястото е извън обхвата на региона.');
     if (input.key) {
       const dup = [...this.s.incidents.values()].find((i) => i.key === input.key);
@@ -106,6 +131,10 @@ export class Service {
     }
     if (input.source === 'bystander') {
       if (!this.s.flags.public_alerts) throw new HttpError(403, 'Известяването на доброволци е изключено.');
+      // Question 4: the alert never replaces 112 (the Health Act obliges anyone at the scene to call it).
+      if (!input.called112) throw new HttpError(400, 'Първо се обади на 112.');
+      // Question 5: nobody is sent into a scene the caller says is dangerous.
+      if (input.scene === 'unsafe') throw new HttpError(409, 'Мястото е опасно: доброволци не се изпращат. Пази се и чакай 112.');
       const gapS = process.env.PROD ? 600 : 20; // BLUEPRINT §14: 1 per 10 min in production; short in the drill environment
       const k = `inc:${input.deviceId ?? 'anon'}`;
       const last = this.s.rate.get(k) ?? 0;
@@ -124,6 +153,8 @@ export class Service {
       createdBy: input.createdBy,
       deviceId: input.deviceId,
       key: input.key,
+      called112: input.source !== 'bystander' || !!input.called112,
+      scene: input.source === 'bystander' ? (input.scene ?? 'unknown') : 'safe',
       emsEtaS: REGION.emsEtaMin * 60,
       version: 1,
       events: [],
@@ -136,6 +167,7 @@ export class Service {
   }
 
   private startWave(inc: Incident) {
+    if (inc.scene === 'unsafe') return;
     const now = Date.now();
     const cfg = this.config();
     const claimed = this.claimedAedIds();
@@ -144,6 +176,8 @@ export class Service {
       if (a.status === 'retired') continue;
       const open = openState(a.openingHours);
       if (open === 'closed') continue;
+      const eq = a.equipmentId ? this.s.equipment.find((x) => x.id === a.equipmentId) : undefined;
+      if (eq && !aedUsable(eq.dates)) continue; // expired battery or pads: a runner would bring a device that cannot shock
       aeds.push({ id: a.id, lat: a.lat, lon: a.lon, indoorOrLevel: a.indoor, claimed: claimed.has(a.id), unknownHours: open === 'unknown' });
     }
     const mine = this.incidentAssignments(inc.id);
@@ -259,6 +293,29 @@ export class Service {
     return { assignment: mine, state: inc.state };
   }
 
+  /** Dispatcher (or a volunteer on scene) marks the scene. 'unsafe' withdraws open offers and stops new waves. */
+  setScene(inc: Incident, scene: SceneSafety, actor: string) {
+    if (!isActive(inc.state) && inc.state !== 'DISPATCH_FAILED') throw new HttpError(409, 'Случаят е приключил.');
+    inc.scene = scene;
+    if (scene === 'unsafe') for (const o of this.s.offers) if (o.incidentId === inc.id && o.status === 'sent') o.status = 'withdrawn';
+    this.log(inc, actor, 'scene', { scene });
+    this.changed(inc.id);
+  }
+
+  /** A volunteer pulls out because it is dangerous. Not a decline: it never lowers their acceptance score. */
+  withdrawUnsafe(userId: string, assignmentId: string) {
+    const a = this.s.assignments.find((x) => x.id === assignmentId && x.responderId === userId && x.status !== 'released');
+    if (!a) throw new HttpError(404, 'Няма активно назначение.');
+    const inc = this.s.incidents.get(a.incidentId)!;
+    a.status = 'released';
+    a.unsafeWithdraw = true;
+    a.updatedAt = Date.now();
+    this.s.tracks.delete(a.id);
+    this.log(inc, userId, 'unsafe_withdraw', { role: a.role });
+    this.setScene(inc, 'unsafe', userId);
+    return { ok: true };
+  }
+
   pushLocation(userId: string, assignmentId: string, pos: LatLon) {
     const a = this.s.assignments.find((x) => x.id === assignmentId && x.responderId === userId && x.status !== 'released');
     if (!a) throw new HttpError(404, 'Няма активно назначение.');
@@ -318,7 +375,7 @@ export class Service {
 
       // Next wave, or fail, once the wave's offers are all answered/expired and its time is up.
       const waveOver = now - inc.waveStartedAt >= this.config().waveTimeoutS * 1000;
-      if (isActive(inc.state) && waveOver && !this.targetsMet(inc)) {
+      if (isActive(inc.state) && waveOver && !this.targetsMet(inc) && inc.scene !== 'unsafe') {
         if (inc.wave + 1 < this.config().maxWaves) {
           inc.wave++;
           this.apply(inc, 'wave_timeout_next', 'dispatch', { wave: inc.wave });
@@ -348,7 +405,53 @@ export class Service {
         this.changed(inc.id);
       }
     }
+    this.coarsenOld(now);
+    if (now - this.lastReminderRun > 60_000) this.runReminders(now);
     return dirty;
+  }
+
+  /** Question 3: closed incidents keep a precise location only for RETAIN_PRECISE_DAYS. */
+  private coarsenOld(now: number) {
+    const keepMs = Number(process.env.RETAIN_PRECISE_MS ?? RETAIN_PRECISE_DAYS * 86_400_000);
+    for (const inc of this.s.incidents.values()) {
+      if (inc.coarsened || inc.state !== 'CLOSED') continue;
+      const closedAt = [...inc.events].reverse().find((e) => e.type === 'state' && e.data?.state === 'CLOSED')?.at ?? inc.createdAt;
+      if (now - closedAt < keepMs) continue;
+      inc.pos = { lat: coarsen(inc.pos.lat), lon: coarsen(inc.pos.lon) };
+      inc.deviceId = undefined;
+      inc.coarsened = true;
+    }
+  }
+
+  // ---------- organisations: maintenance reminders ----------
+  private lastReminderRun = 0;
+
+  /** Sends (into the simulated outbox) one mail per check per stage: 30, 7, 0 days before due, then weekly while overdue. */
+  runReminders(now = Date.now()): number {
+    this.lastReminderRun = now;
+    const sent = new Set(this.s.outbox.map((m) => m.key));
+    let n = 0;
+    for (const eq of this.s.equipment) {
+      const org = this.s.orgs.find((o) => o.id === eq.orgId);
+      const site = this.s.sites.find((x) => x.id === eq.siteId);
+      if (!org || !site) continue;
+      for (const c of equipmentChecks(eq.kind, eq.dates, new Date(now))) {
+        const stage = reminderStage(c.daysLeft);
+        if (!stage) continue;
+        const key = `${eq.id}:${c.key}:${c.due}:${stage}`;
+        if (sent.has(key)) continue;
+        const when = c.daysLeft! < 0 ? `просрочено с ${-c.daysLeft!} дни` : c.daysLeft === 0 ? 'днес' : `след ${c.daysLeft} дни`;
+        for (const uid of org.ownerIds) {
+          const to = this.s.users.get(uid)?.email;
+          if (!to) continue;
+          this.s.outbox.push({ id: this.s.id('mail'), at: now, to, key, equipmentId: eq.id, subject: `${c.label}: ${eq.model} (${site.name}) — ${when}`, body: `${site.name}, ${eq.locationHint ?? ''}. Срок: ${c.due}. Отбележете в ДефиКарта, когато е направено.` });
+          n++;
+        }
+        sent.add(key);
+      }
+    }
+    if (n) this.changed();
+    return n;
   }
 
   private moveBots(inc: Incident, now: number): boolean {
@@ -408,6 +511,8 @@ export class Service {
       notified: offers.length,
       enRoute: asg.filter((a) => a.status !== 'released').length,
       aedEtaS: this.aedEtaS(inc),
+      called112: inc.called112,
+      scene: inc.scene,
       emsEtaS: Math.max(0, Math.round(inc.emsEtaS / SIM_SPEED - (Date.now() - inc.createdAt) / 1000)),
     };
   }

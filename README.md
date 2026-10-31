@@ -46,14 +46,17 @@ Android store builds need a Google Maps key in `GOOGLE_MAPS_ANDROID_KEY` (Expo G
 `npm run dev`, open http://127.0.0.1:5180. Every screen carries a yellow „УЧЕНИЕ“ strip: this environment has 18 simulated responders and 8 **demo** AEDs (labelled „ДЕМО“), never real data.
 
 1. **Dispatcher**: `#/login` → Диспечер → Конзола → tap the map → „Стартирай учение“. Watch offers go out in waves, responders accept, one runs for the AED, and read the drill report.
-2. **Responder**: log in as Доброволец in another tab, set a position, „Достъпен съм“, then start a drill nearby. Accept „Нося AED“ and use „Симулирай придвижване“.
-3. **Bystander**: „Някой припадна“ → 112 → CPR guide → „Извикай обучени хора наблизо“ (flag `public_alerts`).
+2. **Responder**: log in as Доброволец in another tab and finish „Готовност“ (terms, location consent, the 5-question knowledge check), set a position, „Достъпен съм“, then start a drill nearby. Accept „Нося AED“ and use „Симулирай придвижване“. „⚠ Опасно е — оттеглям се“ pulls out without counting as a decline.
+3. **Bystander**: „Някой припадна“ → 112 → CPR guide → „Безопасно ли е?“ → „Извикай обучени хора наблизо“ (flag `public_alerts`). „Не“ sends nobody.
 4. **Add an AED → verify**: „Добави AED“, then Верификатор → Конзола → Проверка.
 5. **Coverage**: Покритие shows the walking-time heatmap for now / weekday / night / 24/7-only.
+6. **Organisation** (the paid side): log in as Отговорник безопасност → Организация. A demo employer with 3 sites and 10 AEDs, extinguishers and first-aid kits: what is due, reminders (simulated e-mails), the draft-ordinance checklist, a CSV report. Listed AEDs show „✓ поддръжката се следи“ or „⚠ просрочена“ on the public map, and one with an expired battery or pads is never offered to a runner.
+
+Why each piece exists (business model, the law, firstaid.bg, the mentor's five volunteer questions): [docs/SUNDAY.md](docs/SUNDAY.md).
 
 Test accounts (drill only): `responder@`, `dispatcher@`, `verifier@`, `owner@`, `admin@` + `drill.defikarta.bg`, no password. The simulated responders move ×6 faster than real life (`SIM_SPEED`).
 
-**Not built yet** (see [BLUEPRINT](docs/BLUEPRINT.md)): Supabase/Postgres + RLS (the server is in-memory and resets on restart), push notifications, responder zones and quiet hours, photo upload, population-weighted coverage, the native app's responder mode, OSRM walking times, SMS fallback.
+**Not built yet** (see [BLUEPRINT](docs/BLUEPRINT.md)): Supabase/Postgres + RLS (the server is in-memory and resets on restart), push notifications, responder zones, photo upload, real e-mail for reminders, per-organisation maintenance intervals, population-weighted coverage, the native app's responder mode, OSRM walking times, SMS fallback.
 
 ## Data
 
@@ -64,7 +67,8 @@ Test accounts (drill only): `responder@`, `dispatcher@`, `verifier@`, `owner@`, 
 ## Safety
 
 - 112 is always the first screen of the emergency flow.
-- CPR texts follow ERC 2021 hands-only CPR and **must be reviewed by a certified instructor (БЧК / „3 минути") before public release.**
+- CPR texts follow ERC 2021 hands-only CPR and **must be reviewed by a certified instructor (БЧК / „Първите три минути“) before public release.**
+- Live (non-drill) volunteer alerts stay off until the five questions in [docs/SUNDAY.md §5](docs/SUNDAY.md#5-доброволците-петте-въпроса) have signed-off answers. The volunteer terms in `packages/core/src/safety.ts` are a draft for legal review.
 
 ## Next
 

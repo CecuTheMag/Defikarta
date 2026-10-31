@@ -5,9 +5,10 @@ import { AddAed } from './screens/AddAed';
 import { Console } from './screens/Console';
 import { Coverage } from './screens/Coverage';
 import { Login } from './screens/Login';
+import { Org } from './screens/Org';
 import { Responder } from './screens/Responder';
 
-const ROUTES = ['', 'add', 'responder', 'console', 'coverage', 'login'] as const;
+const ROUTES = ['', 'add', 'responder', 'console', 'coverage', 'org', 'login'] as const;
 type RouteName = (typeof ROUTES)[number];
 
 const routeOf = (): RouteName => {
@@ -43,6 +44,7 @@ export function Shell() {
             {link('responder', 'Доброволец')}
             {link('console', 'Конзола')}
             {link('coverage', 'Покритие')}
+            {link('org', 'Организация')}
             {me ? (
               <a
                 href="#/login"
@@ -65,10 +67,18 @@ export function Shell() {
       <div className="shell-body">
         {route === '' && <App config={cfg} />}
         {route === 'add' && <AddAed />}
-        {route === 'login' && <Login onDone={() => { refresh(); go('responder'); }} />}
+        {route === 'login' && (
+          <Login
+            onDone={(roles) => {
+              refresh();
+              go(roles.includes('aed_owner') ? 'org' : roles.some((r) => r === 'dispatcher' || r === 'verifier' || r === 'admin') ? 'console' : 'responder');
+            }}
+          />
+        )}
         {route === 'responder' && <Responder me={me} refreshMe={refresh} goLogin={() => go('login')} />}
         {route === 'console' && <Console me={me} goLogin={() => go('login')} />}
         {route === 'coverage' && <Coverage />}
+        {route === 'org' && <Org me={me} goLogin={() => go('login')} />}
       </div>
     </div>
   );
