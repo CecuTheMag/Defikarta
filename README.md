@@ -39,7 +39,16 @@ Store builds go through EAS (no Mac needed for the iOS build):
 cd apps/mobile && npx eas-cli@latest build --platform all
 ```
 
-Android store builds need a Google Maps key in `GOOGLE_MAPS_ANDROID_KEY` (Expo Go works without one).
+A local Android APK (no EAS account; needs the Android SDK and JDK 17):
+
+```bash
+cd apps/mobile && npx expo prebuild --platform android
+cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb reverse tcp:8791 tcp:8791   # the app reaches the drill server over USB at http://localhost:8791
+```
+
+The map is OpenStreetMap drawn by Leaflet inside the app, so no Google Maps key is needed. On Wi-Fi, set the computer's address in Вход → Сървър.
 
 ## Try the whole idea (drill environment)
 

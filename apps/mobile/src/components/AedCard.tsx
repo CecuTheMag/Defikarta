@@ -29,6 +29,9 @@ export function AedCard({ aed, compact = false }: { aed: RankedAed; compact?: bo
       <View style={[styles.badge, { backgroundColor: b.bg }]}>
         <Text style={[styles.badgeText, { color: b.fg }]}>{openLabel(aed.open)}</Text>
       </View>
+      {aed.source === 'demo' && <Text style={[styles.tag, { color: '#2A3A9C' }]}>ДЕМО данни</Text>}
+      {aed.maintenance === 'tracked' && <Text style={[styles.tag, { color: colors.green }]}>✓ поддръжката се следи</Text>}
+      {aed.maintenance === 'overdue' && <Text style={[styles.tag, { color: colors.redDark }]}>⚠ поддръжката е просрочена</Text>}
       {aed.locationHint ? <Text style={styles.hint}>📍 {aed.locationHint}</Text> : null}
       {!compact && aed.note ? <Text style={styles.note}>{aed.note}</Text> : null}
       <Pressable style={styles.routeBtn} onPress={route} accessibilityRole="button">
@@ -46,6 +49,7 @@ const styles = StyleSheet.create({
   badge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { fontSize: 13, fontWeight: '700' },
   hint: { fontSize: 15, color: colors.ink },
+  tag: { fontSize: 13, fontWeight: '700' },
   note: { fontSize: 13, color: colors.muted },
   routeBtn: { alignSelf: 'flex-start', paddingVertical: 6 },
   routeText: { fontSize: 16, fontWeight: '700', color: colors.red },

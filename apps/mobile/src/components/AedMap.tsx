@@ -1,27 +1,11 @@
 import { STARA_ZAGORA_CENTER, type LatLon, type RankedAed } from '@defikarta/core';
 import { StyleSheet } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { LeafletMap, type Pin } from './LeafletMap';
 
-const pin = { open: 'green', closed: 'red', unknown: 'orange' } as const;
+const color = { open: '#1E7B34', closed: '#C8102E', unknown: '#C77700' } as const;
 
 export function AedMap({ aeds, coords }: { aeds: RankedAed[]; coords: LatLon | null }) {
-  const center = coords ?? STARA_ZAGORA_CENTER;
-  return (
-    <MapView
-      style={StyleSheet.absoluteFill}
-      initialRegion={{ latitude: center.lat, longitude: center.lon, latitudeDelta: 0.04, longitudeDelta: 0.04 }}
-      showsUserLocation
-      showsMyLocationButton
-    >
-      {aeds.map((a) => (
-        <Marker
-          key={a.id}
-          coordinate={{ latitude: a.lat, longitude: a.lon }}
-          title={a.name}
-          description={a.locationHint ?? a.note}
-          pinColor={pin[a.open]}
-        />
-      ))}
-    </MapView>
-  );
+  const pins: Pin[] = aeds.map((a) => ({ id: a.id, lat: a.lat, lon: a.lon, color: color[a.open], text: '⚡', label: [a.name, a.locationHint].filter(Boolean).join('\n') }));
+  if (coords) pins.push({ id: 'me', ...coords, color: '#1A73E8', size: 20 });
+  return <LeafletMap style={StyleSheet.absoluteFill} center={coords ?? STARA_ZAGORA_CENTER} pins={pins} />;
 }

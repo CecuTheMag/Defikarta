@@ -1,47 +1,52 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchOsmAeds, mergeAeds, SEED_AEDS, type Aed } from '@defikarta/core';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { api } from './api';
 
-const CACHE_KEY = 'aeds:v1';
+const CACHE_KEY = 'aeds:v2';
+
+interface Cached {
+  osm: Aed[];
+  local: Aed[];
+  at: string | null;
+}
 
 /**
- * Seed data shows immediately, the last good OSM download comes from cache (works offline),
- * and a fresh OSM download replaces both when the network allows.
+ * Seed data shows immediately, the last good download comes from cache (works offline),
+ * and fresh data replaces it when the network allows. Two sources, as on the website:
+ * OSM is the source of truth; our server adds verified local records, organisation-listed devices
+ * (with their maintenance status) and, in the drill environment, demo devices.
  */
 export function useAeds() {
-  const [aeds, setAeds] = useState<Aed[]>(SEED_AEDS);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [data, setData] = useState<Cached>({ osm: [], local: [], at: null });
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    let current: Cached = { osm: [], local: [], at: null };
+    const update = (patch: Partial<Cached>) => {
+      current = { ...current, ...patch, at: new Date().toISOString() };
+      if (cancelled) return;
+      setData(current);
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(current)).catch(() => undefined);
+    };
     (async () => {
       try {
         const cached = await AsyncStorage.getItem(CACHE_KEY);
-        if (cached && !cancelled) {
-          const { osm, at } = JSON.parse(cached) as { osm: Aed[]; at: string };
-          setAeds(mergeAeds(osm, SEED_AEDS));
-          setUpdatedAt(at);
-        }
+        if (cached && !cancelled) setData((current = JSON.parse(cached) as Cached));
       } catch {
         // Corrupt cache: ignore, seed is already shown.
       }
-      try {
-        const osm = await fetchOsmAeds();
-        const at = new Date().toISOString();
-        if (cancelled) return;
-        setAeds(mergeAeds(osm, SEED_AEDS));
-        setUpdatedAt(at);
-        setOffline(false);
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ osm, at }));
-      } catch {
-        if (!cancelled) setOffline(true);
-      }
+      const [osm, local] = await Promise.allSettled([fetchOsmAeds(), api<{ aeds: Aed[] }>('/api/aeds')]);
+      if (osm.status === 'fulfilled') update({ osm: osm.value });
+      if (local.status === 'fulfilled') update({ local: local.value.aeds });
+      if (!cancelled) setOffline(osm.status === 'rejected' && local.status === 'rejected');
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return { aeds, updatedAt, offline };
+  const aeds = useMemo(() => mergeAeds(data.osm, data.local.length ? data.local : SEED_AEDS), [data]);
+  return { aeds, updatedAt: data.at, offline };
 }

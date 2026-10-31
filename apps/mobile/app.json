@@ -20,7 +20,9 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
-        "VIBRATE"
+        "VIBRATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -30,13 +32,15 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "ДефиКарта използва местоположението ти, за да покаже най-близкия дефибрилатор."
+          "locationWhenInUsePermission": "ДефиКарта използва местоположението ти, за да покаже най-близкия дефибрилатор и — ако си доброволец и си „достъпен“ — за известия наблизо."
         }
       ],
       [
-        "react-native-maps",
+        "expo-build-properties",
         {
-          "androidGoogleMapsApiKey": "process.env.GOOGLE_MAPS_ANDROID_KEY"
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

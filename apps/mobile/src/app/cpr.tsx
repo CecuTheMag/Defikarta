@@ -6,8 +6,10 @@ import * as Speech from 'expo-speech';
 import { useEffect, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AedCard } from '@/components/AedCard';
+import { AlertPeople } from '@/components/AlertPeople';
 import { useAedState } from '@/lib/AedContext';
 import { useMetronome } from '@/lib/useMetronome';
+import { useSession } from '@/lib/session';
 import { colors } from '@/theme';
 
 const say = (text: string) => Speech.speak(text, { language: 'bg-BG', rate: 1.0 });
@@ -15,6 +17,7 @@ const say = (text: string) => Speech.speak(text, { language: 'bg-BG', rate: 1.0 
 export default function Cpr() {
   useKeepAwake();
   const { ranked, coords } = useAedState();
+  const { config } = useSession();
   const click = useAudioPlayer(require('../../assets/click.wav'));
   const [running, setRunning] = useState(false);
   const [count, setCount] = useState(0);
@@ -94,6 +97,9 @@ export default function Cpr() {
           ))}
         </View>
       )}
+
+      {/* Only reached through „Обадих се“ on step 1, so 112 has been called. Hidden when the server is unreachable. */}
+      {config?.flags.public_alerts && <AlertPeople coords={coords} />}
 
       {nearest && (
         <View style={{ gap: 8 }}>

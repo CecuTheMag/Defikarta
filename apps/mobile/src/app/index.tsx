@@ -4,10 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AedCard } from '@/components/AedCard';
 import { AedMap } from '@/components/AedMap';
 import { useAedState } from '@/lib/AedContext';
+import { homeFor, useSession } from '@/lib/session';
 import { colors } from '@/theme';
 
 export default function Home() {
   const { ranked, coords, locationStatus, offline } = useAedState();
+  const { me } = useSession();
   const insets = useSafeAreaInsets();
   const nearest = coords ? ranked[0] : undefined;
 
@@ -36,6 +38,14 @@ export default function Home() {
           <Text style={styles.sosSub}>112 · масаж · най-близък AED</Text>
         </Pressable>
         {nearest && <AedCard aed={nearest} compact />}
+        <View style={styles.links}>
+          <Pressable style={styles.link} onPress={() => router.push('/volunteer')} accessibilityRole="button">
+            <Text style={styles.linkText}>🏃 Доброволец</Text>
+          </Pressable>
+          <Pressable style={styles.link} onPress={() => router.push(me ? homeFor(me.user.roles) : '/login')} accessibilityRole="button">
+            <Text style={styles.linkText}>{me ? `👤 ${me.user.name}` : '🔑 Вход'}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -49,4 +59,7 @@ const styles = StyleSheet.create({
   sos: { backgroundColor: colors.red, borderRadius: 18, paddingVertical: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   sosText: { color: '#fff', fontSize: 26, fontWeight: '800' },
   sosSub: { color: '#FFE3E8', fontSize: 14, marginTop: 2 },
+  links: { flexDirection: 'row', gap: 10 },
+  link: { flex: 1, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, borderWidth: 1, borderColor: colors.line, paddingVertical: 10, alignItems: 'center' },
+  linkText: { fontSize: 15, fontWeight: '700', color: colors.ink },
 });
