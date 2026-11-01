@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#E1112D" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <title>ДефиКарта</title>
+    <style>
+      /* Native builds embed Manrope via expo-font (app.json); the web build loads the same files. */
+      @font-face { font-family: 'Manrope'; font-weight: 400; font-display: swap; src: url('/fonts/Manrope_400Regular.ttf') format('truetype'); }
+      @font-face { font-family: 'Manrope'; font-weight: 500; font-display: swap; src: url('/fonts/Manrope_500Medium.ttf') format('truetype'); }
+      @font-face { font-family: 'Manrope'; font-weight: 600; font-display: swap; src: url('/fonts/Manrope_600SemiBold.ttf') format('truetype'); }
+      @font-face { font-family: 'Manrope'; font-weight: 700; font-display: swap; src: url('/fonts/Manrope_700Bold.ttf') format('truetype'); }
+      @font-face { font-family: 'Manrope'; font-weight: 800; font-display: swap; src: url('/fonts/Manrope_800ExtraBold.ttf') format('truetype'); }
+    </style>
+    <style id="expo-reset">
+      html, body { height: 100%; }
+      body { overflow: hidden; }
+      #root { display: flex; height: 100%; flex: 1; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    </script>
+  </body>
+</html>
