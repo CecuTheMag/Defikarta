@@ -78,7 +78,7 @@ describe('overpass', () => {
     const s = SEED_AEDS[0];
     const osm: Aed = { ...s, id: 'osm:node/9', source: 'osm', lat: s.lat + 0.0001 };
     const merged = mergeAeds([osm], SEED_AEDS);
-    expect(merged.map((a) => a.id)).toEqual(['osm:node/9', SEED_AEDS[1].id]);
+    expect(merged.map((a) => a.id)).toEqual(['osm:node/9', ...SEED_AEDS.slice(1).map((a) => a.id)]);
   });
 });
 
