@@ -27,6 +27,7 @@ import { REGION, Store, type Equipment, type Role, type Submission, type User } 
 import { HttpError, Service, SIM_SPEED } from './service';
 
 const PORT = Number(process.env.PORT ?? 8791);
+const HOST = process.env.HOST ?? '127.0.0.1';
 const store = new Store();
 const streams = new Set<ServerResponse>();
 
@@ -668,4 +669,4 @@ createServer(async (req, res) => {
     console.error(e);
     send(res, 500, { error: 'Вътрешна грешка.' });
   }
-}).listen(PORT, '127.0.0.1', () => console.log(`ДефиКарта server (drill env) on http://127.0.0.1:${PORT}  sim speed x${SIM_SPEED}`));
+}).listen(PORT, HOST, () => console.log(`ДефиКарта server (drill env) on http://${HOST}:${PORT}  sim speed x${SIM_SPEED}`));

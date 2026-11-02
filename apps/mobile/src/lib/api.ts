@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 /**
  * Client for the drill server (apps/server). The address is editable on the login screen:
  * http://localhost:8791 works over USB after `adb reverse tcp:8791 tcp:8791`; on Wi-Fi use the computer's LAN address.
  */
-export const DEFAULT_SERVER = 'http://localhost:8791';
+// On web the drill server is served from the same origin under /api.
+export const DEFAULT_SERVER = Platform.OS === 'web' && typeof location !== 'undefined' ? location.origin : 'http://localhost:8791';
 const K = { server: 'defikarta:server', token: 'defikarta:token', device: 'defikarta:device' };
 
 let server = DEFAULT_SERVER;

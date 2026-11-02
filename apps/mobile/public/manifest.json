@@ -1,0 +1,15 @@
+{
+  "name": "ДефиКарта",
+  "short_name": "ДефиКарта",
+  "description": "Най-близкият дефибрилатор и помощ при сърдечен арест",
+  "lang": "bg",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#E1112D",
+  "background_color": "#F3F4F6",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ]
+}
