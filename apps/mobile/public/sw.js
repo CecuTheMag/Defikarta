@@ -1,7 +1,7 @@
 // Minimal offline support: network first, fall back to cache (app shell + CPR guide keep working offline).
 // Bump CACHE on every deploy; activate deletes every other cache, including ones left by older builds
 // served from this origin, so a stale shell can never win over the current app.
-const CACHE = 'defikarta-v4';
+const CACHE = 'defikarta-v5';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.add('/'))); });
 self.addEventListener('activate', (e) =>
   e.waitUntil(
