@@ -1,4 +1,4 @@
-import { fetchOsmAeds, mergeAeds, rankAeds, SEED_AEDS, type Aed, type LatLon, type RankedAed } from '@defikarta/core';
+import { fetchOsmAeds, mergeAeds, openState, rankAeds, SEED_AEDS, type Aed, type LatLon, type RankedAed } from '@defikarta/core';
 import { useEffect, useMemo, useState } from 'react';
 
 const CACHE_KEY = 'aeds:v2';
@@ -27,7 +27,7 @@ function writeCache(c: Cached) {
 
 /**
  * Strategy (BLUEPRINT §11): seed → cache → fresh, from two sources.
- * OSM is the source of truth; our API adds verified local records not in OSM yet (and, in the drill env, demo devices).
+ * OSM is the source of truth; our API adds verified local records not in OSM yet. Every point is a real device; see README → AED data.
  * If the API is unreachable, the bundled seed keeps the map useful offline.
  */
 export function useAeds(coords: LatLon | null): { ranked: RankedAed[]; offline: boolean } {
@@ -61,7 +61,7 @@ export function useAeds(coords: LatLon | null): { ranked: RankedAed[]; offline: 
 
   const aeds = useMemo(() => mergeAeds(data.osm, data.local.length ? data.local : SEED_AEDS), [data]);
   const ranked = useMemo(
-    () => (coords ? rankAeds(aeds, coords) : aeds.map((a) => ({ ...a, distanceM: NaN, walkMin: NaN, open: 'unknown' as const }))),
+    () => (coords ? rankAeds(aeds, coords) : aeds.map((a) => ({ ...a, distanceM: NaN, walkMin: NaN, open: openState(a.openingHours) }))),
     [aeds, coords],
   );
   return { ranked, offline };

@@ -1,4 +1,4 @@
-import { rankAeds, type RankedAed } from '@defikarta/core';
+import { openState, rankAeds, type RankedAed } from '@defikarta/core';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAeds } from './useAeds';
 import { useLocation, type LocationStatus } from './useLocation';
@@ -18,7 +18,7 @@ const Ctx = createContext<AedState | null>(null);
 export function AedProvider({ children }: { children: ReactNode }) {
   const { aeds, offline, updatedAt } = useAeds();
   const { coords, status } = useLocation();
-  const ranked = useMemo(() => (coords ? rankAeds(aeds, coords) : aeds.map((a) => ({ ...a, distanceM: NaN, walkMin: NaN, open: 'unknown' as const }))), [aeds, coords]);
+  const ranked = useMemo(() => (coords ? rankAeds(aeds, coords) : aeds.map((a) => ({ ...a, distanceM: NaN, walkMin: NaN, open: openState(a.openingHours) }))), [aeds, coords]);
   return <Ctx.Provider value={{ ranked, coords, locationStatus: status, offline, updatedAt }}>{children}</Ctx.Provider>;
 }
 
