@@ -1,12 +1,14 @@
 import type { Aed } from './types';
 
-/** Stara Zagora city + surroundings: south, west, north, east. */
+/** Stara Zagora city + surroundings: south, west, north, east. The drill dispatch region. */
 export const STARA_ZAGORA_BBOX: [number, number, number, number] = [42.37, 25.55, 42.47, 25.72];
+/** The whole province (Казанлък, Чирпан, Раднево, АМ „Тракия“ …): what the map downloads from OSM. */
+export const STARA_ZAGORA_PROVINCE_BBOX: [number, number, number, number] = [41.95, 24.95, 42.8, 26.15];
 export const STARA_ZAGORA_CENTER = { lat: 42.4258, lon: 25.6345 };
 
 export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-export function overpassQuery(bbox = STARA_ZAGORA_BBOX): string {
+export function overpassQuery(bbox = STARA_ZAGORA_PROVINCE_BBOX): string {
   return `[out:json][timeout:25];nwr["emergency"="defibrillator"](${bbox.join(',')});out center tags;`;
 }
 
@@ -43,7 +45,7 @@ export function parseOverpass(json: { elements?: OverpassElement[] }): Aed[] {
 }
 
 /** Fetch AEDs from OpenStreetMap. Throws on network/HTTP errors so callers can fall back to cache. */
-export async function fetchOsmAeds(bbox = STARA_ZAGORA_BBOX, fetchImpl: typeof fetch = fetch): Promise<Aed[]> {
+export async function fetchOsmAeds(bbox = STARA_ZAGORA_PROVINCE_BBOX, fetchImpl: typeof fetch = fetch): Promise<Aed[]> {
   const res = await fetchImpl(OVERPASS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

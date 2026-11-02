@@ -15,7 +15,7 @@ interface Cached {
  * Seed data shows immediately, the last good download comes from cache (works offline),
  * and fresh data replaces it when the network allows. Two sources, as on the website:
  * OSM is the source of truth; our server adds verified local records, organisation-listed devices
- * (with their maintenance status) and, in the drill environment, demo devices.
+ * (with their maintenance status). Every point is a real device; see README → AED data.
  */
 export function useAeds() {
   const [data, setData] = useState<Cached>({ osm: [], local: [], at: null });

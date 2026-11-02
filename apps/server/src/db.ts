@@ -180,18 +180,6 @@ export interface Flags {
 
 export const REGION = { id: 'stara-zagora', name: 'Стара Загора', emsEtaMin: 12, center: STARA_ZAGORA_CENTER };
 
-/** Fake devices so the drill environment has something to dispatch and cover. Never shown as real data. */
-const DEMO_AEDS: Omit<ServerAed, 'status' | 'source'>[] = [
-  { id: 'demo:mall', name: 'ДЕМО · търговски център', lat: 42.4301, lon: 25.6412, openingHours: 'Mo-Su 09:00-21:00', locationHint: 'до информацията, вход Север', indoor: true, access: 'customers' },
-  { id: 'demo:hospital', name: 'ДЕМО · болница, приемно', lat: 42.4189, lon: 25.6291, openingHours: '24/7', locationHint: 'приемно отделение', indoor: true, access: 'yes' },
-  { id: 'demo:gym', name: 'ДЕМО · фитнес зала', lat: 42.4233, lon: 25.6471, openingHours: 'Mo-Fr 06:00-22:00; Sa-Su 09:00-20:00', locationHint: 'на рецепцията', indoor: true, access: 'customers' },
-  { id: 'demo:town-hall', name: 'ДЕМО · общинска сграда', lat: 42.4262, lon: 25.6343, openingHours: 'Mo-Fr 08:30-17:30', locationHint: 'до охраната, вход Б', indoor: true, access: 'yes' },
-  { id: 'demo:park', name: 'ДЕМО · парк, външен шкаф', lat: 42.4327, lon: 25.6269, openingHours: '24/7', locationHint: 'външен шкаф до кафенето', indoor: false, access: 'yes' },
-  { id: 'demo:station', name: 'ДЕМО · гара', lat: 42.4097, lon: 25.6186, openingHours: '24/7', locationHint: 'в залата за пътници', indoor: true, access: 'yes' },
-  { id: 'demo:sports-hall', name: 'ДЕМО · спортна зала', lat: 42.4388, lon: 25.6475, openingHours: 'Mo-Fr 07:00-21:00', locationHint: 'при входа за състезатели', indoor: true, access: 'customers' },
-  { id: 'demo:pharmacy', name: 'ДЕМО · аптека', lat: 42.4204, lon: 25.6405, locationHint: 'на щанда', indoor: true, access: 'customers' },
-];
-
 /** Bot responders are scattered deterministically around the centre, so every demo looks the same. */
 function botResponders(): { user: User; responder: Responder }[] {
   const out: { user: User; responder: Responder }[] = [];
@@ -210,7 +198,7 @@ function botResponders(): { user: User; responder: Responder }[] {
 
 /**
  * A fake employer with three sites, seeded relative to today so every status (ok, soon, overdue, missing) shows up.
- * Positions are inside the city so listed AEDs can take part in drills.
+ * Positions are inside the city so an AED listed during a drill can take part in it.
  */
 function demoOrg(today: string) {
   const d = (n: number) => addDays(today, n);
@@ -293,21 +281,15 @@ export class Store {
       'dispatch.targetCpr': DEFAULT_DISPATCH.targetCpr,
       'dispatch.targetAed': DEFAULT_DISPATCH.targetAed,
     };
-    this.aeds = [
-      ...SEED_AEDS.map<ServerAed>((a) => ({ ...a, status: 'unverified' })),
-      ...DEMO_AEDS.map<ServerAed>((a) => ({ ...a, source: 'demo', status: 'verified', verifiedAt: '2026-10-30', note: 'ДЕМО данни за учебната среда. Не е реално устройство.' })),
-    ];
+    // Only real devices from public sources (see README → AED data). No made-up points on the map, even in the drill.
+    this.aeds = SEED_AEDS.map<ServerAed>((a) => ({ ...a, status: 'unverified' }));
     const demo = demoOrg(isoDate(new Date()));
     this.orgs = [demo.org];
     this.sites = demo.sites;
     this.equipment = demo.equipment;
     this.maintenance = [];
     this.outbox = [];
-    for (const eq of this.equipment.filter((x) => x.kind === 'aed' && x.publicPlace && x.openingHours)) {
-      const site = this.sites.find((s) => s.id === eq.siteId)!;
-      eq.listedAedId = `org:${eq.id}`;
-      this.aeds.push({ id: eq.listedAedId, source: 'org', status: 'verified', equipmentId: eq.id, name: `ДЕМО · ${demo.org.name.replace('ДЕМО ', '')}, ${site.name}`, lat: site.lat, lon: site.lon, openingHours: eq.openingHours, locationHint: eq.locationHint, indoor: !/външен/.test(eq.locationHint ?? ''), access: 'yes', note: 'ДЕМО данни. Поддръжката се води от организацията в ДефиКарта.' });
-    }
+    // The demo employer's AEDs stay in its registry only. Listing one („Покажи на картата“) is a manual step in the drill.
     for (const t of TEST_ACCOUNTS) this.users.set(t.id, { id: t.id, email: `${t.id.replace('u-', '')}@drill.defikarta.bg`, name: t.name, roles: t.roles });
     this.responders.set('u-responder', {
       userId: 'u-responder',
