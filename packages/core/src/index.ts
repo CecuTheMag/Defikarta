@@ -5,6 +5,7 @@ export * from './rank';
 export * from './overpass';
 export * from './seed';
 export * from './cpr';
+export * from './learn';
 export * from './links';
 export * from './incident';
 export * from './dispatch';

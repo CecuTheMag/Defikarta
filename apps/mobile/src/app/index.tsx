@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
-import { Building, ChevronRight, Hand, HeartPulse, LocateFixed, UserRound } from 'lucide-react-native';
+import { Building, Hand, LocateFixed, UserRound } from 'lucide-react-native';
 import { BlurTargetView } from 'expo-blur';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AedCard } from '@/components/AedCard';
 import { AedMap } from '@/components/AedMap';
-import { Pulse } from '@/components/Pulse';
+import { LearnEntry } from '@/components/LearnEntry';
+import { SosButton } from '@/components/SosButton';
 import { Banner, Glass, IconButton, Mark, T } from '@/components/ui';
 import { useAedState } from '@/lib/AedContext';
 import { homeFor, useSession } from '@/lib/session';
-import { colors, radius, shadow, space, type } from '@/theme';
+import { colors, radius, space, type } from '@/theme';
 
 /**
  * Home: the map is the product. One floating bar on top, one sheet below with the single most
@@ -72,6 +73,10 @@ export default function Home() {
         </View>
       )}
 
+      <View style={[styles.learn, { bottom: sheetH + insets.bottom + 12 }]}>
+        <LearnEntry blurTarget={target} />
+      </View>
+
       {coords && (
         <View style={[styles.locate, { bottom: sheetH + insets.bottom + 12 }]}>
           <IconButton icon={LocateFixed} label="Към моето местоположение" onPress={() => { setSelected(null); setFocus({ ...coords, zoom: 15.5 }); }} />
@@ -88,24 +93,7 @@ export default function Home() {
             <T v="caption">Търсим местоположението ти, за да покажем най-близкия дефибрилатор…</T>
           )}
 
-          <Pulse color={colors.red} size={0} rings={1} period={2600} grow={1.06} rect={{ width: '100%', height: 84, radius: radius.lg }} style={{ alignItems: 'stretch' }}>
-            <Pressable
-              onPress={() => router.push('/emergency')}
-              accessibilityRole="button"
-              accessibilityLabel="Някой припадна. Обаждане на 112, указания за масаж и най-близкия дефибрилатор"
-              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-              style={({ pressed }) => [styles.sos, pressed && { backgroundColor: colors.redDark }]}
-            >
-              <View style={styles.sosIcon}>
-                <HeartPulse size={28} color={colors.red} strokeWidth={2.4} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sosText} maxFontSizeMultiplier={1.3}>Някой припадна</Text>
-                <Text style={styles.sosSub} maxFontSizeMultiplier={1.3}>112 · масаж · най-близък AED</Text>
-              </View>
-              <ChevronRight size={26} color="#fff" strokeWidth={2.4} />
-            </Pressable>
-          </Pulse>
+          <SosButton />
 
           <View style={styles.tiles}>
             <Tile icon={Hand} title="Доброволец" sub="Помагай наблизо" onPress={() => router.push('/volunteer')} />
@@ -139,13 +127,10 @@ const styles = StyleSheet.create({
   word: { ...(type.heading as object), fontSize: 18, lineHeight: 22, color: colors.ink },
   notice: { position: 'absolute', left: space.lg, right: space.lg },
   locate: { position: 'absolute', right: space.lg },
+  learn: { position: 'absolute', left: space.lg },
   sheetWrap: { position: 'absolute', left: 10, right: 10, bottom: 0 },
   sheet: { borderRadius: radius.xl },
   handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.lineStrong, marginTop: -4 },
-  sos: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 84, borderRadius: radius.lg, backgroundColor: colors.red, paddingHorizontal: 16, overflow: 'hidden', ...shadow.glow },
-  sosIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  sosText: { ...(type.title as object), fontSize: 24, lineHeight: 28, color: '#fff' },
-  sosSub: { ...(type.caption as object), color: 'rgba(255,255,255,0.85)', fontSize: 14 },
   tiles: { flexDirection: 'row', gap: space.sm },
   tile: { flex: 1, gap: 10, minHeight: 64, padding: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   tileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },

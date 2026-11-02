@@ -77,3 +77,17 @@ export const shadow = {
 };
 
 export const motion = { fast: 140, base: 220, slow: 380 };
+
+/**
+ * Learning feed („Научи“) backgrounds: a deep gradient per topic plus one bright accent.
+ * White text sits on the lighter `top` stop at ≥ 4.5:1 in every mood.
+ */
+export const moods = {
+  red: { top: '#6B0A16', bottom: '#16030A', accent: '#FF5468' },
+  crimson: { top: '#5A0727', bottom: '#14030B', accent: '#FF6B95' },
+  violet: { top: '#3F1D86', bottom: '#110726', accent: '#C2A3FF' },
+  indigo: { top: '#1D2C7C', bottom: '#070B22', accent: '#94A8FF' },
+  teal: { top: '#05605C', bottom: '#02191B', accent: '#45E3C8' },
+  amber: { top: '#8A3A06', bottom: '#220C02', accent: '#FFBA52' },
+  ink: { top: '#232733', bottom: '#07080B', accent: '#FF5468' },
+} as const;
