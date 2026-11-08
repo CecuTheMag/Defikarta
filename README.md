@@ -6,6 +6,7 @@ Find the nearest AED, call 112 and get guided through hands-only CPR.
 ## The plan
 
 - [docs/IDEA.md](docs/IDEA.md): the idea, merging ДефиКарта (Идейник 2026) and СърцеНаблизо (НОИТ 2026–27) into one project: problem, users, product, KPIs, budget, timeline, registration texts
+- [docs/QUESTIONS.md](docs/QUESTIONS.md): answers to the mentor's and jury's questions (existing AEDs, the municipality, fault reporting, БЧК, outreach, using an AED, long-term vision), in Bulgarian
 - [docs/BLUEPRINT.md](docs/BLUEPRINT.md): how the whole system works: architecture (Phase 1 Supabase → Phase 2 distributed services), data model, incident state machine, dispatch algorithm, privacy, API, security, testing, build order
 
 ## Structure
