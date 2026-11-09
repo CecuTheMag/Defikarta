@@ -5,6 +5,14 @@ const BOLT = '<svg viewBox="0 0 24 24" width="15" height="15"><path d="M13 2 4 1
 const CROSS = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" fill="#fff"/></svg>';
 const WALK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m7 21 3-6 3 2v4M9 11l3-3 3 3 3 1M10 15l-1-4"/></svg>';
 
+export type Focus = LatLon & { zoom?: number; also?: LatLon };
+
+/** The page call for a focus: fly to one point, or fit two. Used by the WebView and the web iframe alike. */
+export const focusJs = (f: Focus, padTop: number, padBottom: number) =>
+  f.also
+    ? `window.fitTo(${JSON.stringify({ lat: f.lat, lon: f.lon })},${JSON.stringify(f.also)},${padTop},${padBottom});`
+    : `window.focusOn(${f.lat},${f.lon},${f.zoom ?? 16},${padBottom},${padTop});`;
+
 export function page(c: LatLon, zoom: number) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -44,9 +52,13 @@ window.setData = (d) => {
     m.on('click', (e) => { L.DomEvent.stopPropagation(e); post({ t: 'pin', id: p.id }); });
   }
 };
-window.focusOn = (lat, lon, z, padBottom) => {
-  const pt = map.project([lat, lon], z).add([0, padBottom / 2]);
+window.focusOn = (lat, lon, z, padBottom, padTop = 0) => {
+  const pt = map.project([lat, lon], z).add([0, (padBottom - padTop) / 2]);
   map.flyTo(map.unproject(pt, z), z, { duration: 0.6 });
+};
+// Frame two points (you and the nearest AED) in the part of the map not covered by the top bar and the sheet.
+window.fitTo = (a, b, padTop, padBottom) => {
+  map.flyToBounds([[a.lat, a.lon], [b.lat, b.lon]], { paddingTopLeft: [48, padTop + 24], paddingBottomRight: [48, padBottom + 32], maxZoom: 16.5, duration: 0.6 });
 };
 post({ t: 'ready' });
 </script></body></html>`;

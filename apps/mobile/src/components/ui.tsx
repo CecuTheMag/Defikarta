@@ -159,10 +159,11 @@ export function Header({ title, tone = 'calm', right, back = true }: { title?: s
   );
 }
 
-export function Screen({ children, tone = 'calm', title, right, back, scroll = true, contentStyle }: { children: ReactNode; tone?: Tone; title?: string; right?: ReactNode; back?: boolean; scroll?: boolean; contentStyle?: StyleProp<ViewStyle> }) {
+/** `footer` stays pinned above the home indicator while the content scrolls (e.g. the 112 button during CPR). */
+export function Screen({ children, tone = 'calm', title, right, back, scroll = true, contentStyle, footer }: { children: ReactNode; tone?: Tone; title?: string; right?: ReactNode; back?: boolean; scroll?: boolean; contentStyle?: StyleProp<ViewStyle>; footer?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const bg = tone === 'night' ? colors.night : colors.paper;
-  const body = [{ padding: space.lg, paddingBottom: insets.bottom + 40, gap: space.lg }, contentStyle];
+  const body = [{ padding: space.lg, paddingBottom: footer ? 24 : insets.bottom + 40, gap: space.lg }, contentStyle];
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar style={tone === 'night' ? 'light' : 'dark'} />
@@ -174,6 +175,7 @@ export function Screen({ children, tone = 'calm', title, right, back, scroll = t
       ) : (
         <View style={[{ flex: 1 }, body]}>{children}</View>
       )}
+      {footer && <View style={[styles.footer, { paddingBottom: insets.bottom + 10, backgroundColor: bg, borderTopColor: tone === 'night' ? colors.nightEdge : colors.line }]}>{footer}</View>}
     </View>
   );
 }
@@ -320,6 +322,7 @@ const styles = StyleSheet.create({
   btnXl: { ...(type.heading as object), fontSize: 22, fontWeight: '800' },
   btnSub: { ...(type.caption as object) },
   iconBtn: { borderRadius: 999, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  footer: { paddingHorizontal: space.lg, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: 8 },
   card: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: space.lg, gap: space.md, borderWidth: 1, borderColor: colors.line, ...shadow.soft },
   cardNight: { backgroundColor: colors.night2, borderColor: colors.nightEdge, shadowOpacity: 0 },

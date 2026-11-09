@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AedCard } from '@/components/AedCard';
 import { AlertPeople } from '@/components/AlertPeople';
+import { Call112 } from '@/components/Call112';
 import { Pulse } from '@/components/Pulse';
 import { Steps } from '@/components/Steps';
 import { Chip, Screen, T } from '@/components/ui';
@@ -61,7 +62,7 @@ export default function Cpr() {
   const cycle = count % 30; // ERC hands-only: swap rescuers about every 2 minutes; 30 shows rhythm progress
 
   return (
-    <Screen tone="night" title="Сърдечен масаж" right={<Chip tone="night" icon={voice ? Volume2 : VolumeX} label={voice ? 'Глас' : 'Без глас'} on={voice} onPress={() => setVoice(!voice)} />}>
+    <Screen tone="night" title="Сърдечен масаж" footer={<Call112 />} right={<Chip tone="night" icon={voice ? Volume2 : VolumeX} label={voice ? 'Глас' : 'Без глас'} on={voice} onPress={() => setVoice(!voice)} />}>
       {!running && (
         <>
           <Steps step={2} />

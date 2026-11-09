@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, type ComponentType, type Ref } from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import WebViewBase, { type WebViewMessageEvent } from 'react-native-webview';
 import type { AndroidWebViewProps } from 'react-native-webview/lib/WebViewTypes';
-import { page } from './leafletPage';
+import { focusJs, page, type Focus } from './leafletPage';
+
+export type { Focus } from './leafletPage';
 
 interface WebViewHandle {
   injectJavaScript(js: string): void;
@@ -42,18 +44,21 @@ export function LeafletMap({
   onPinPress,
   style,
   padBottom = 0,
+  padTop = 0,
 }: {
   center: LatLon;
   zoom?: number;
   pins: Pin[];
   lines?: Line[];
-  /** Fly here whenever this object changes (recentre button, selected AED). */
-  focus?: (LatLon & { zoom?: number }) | null;
+  /** Fly here whenever this object changes (recentre button, selected AED). With `also`, frame both points. */
+  focus?: Focus | null;
   onPress?: (p: LatLon) => void;
   onPinPress?: (id: string) => void;
   style?: StyleProp<ViewStyle>;
-  /** Pixels hidden behind a bottom sheet, so flyTo centres in the visible part. */
+  /** Pixels hidden behind a bottom sheet, so flyTo centres in the visible part. Read when `focus` changes, so a resizing sheet never moves the map. */
   padBottom?: number;
+  /** Pixels hidden behind a top bar (used when framing two points). */
+  padTop?: number;
 }) {
   const ref = useRef<WebViewHandle>(null);
   const ready = useRef(false);
@@ -63,15 +68,19 @@ export function LeafletMap({
   useEffect(() => {
     if (ready.current) ref.current?.injectJavaScript(`window.setData(${data});true;`);
   }, [data]);
+  const latest = useRef({ padTop, padBottom, focus });
+  latest.current = { padTop, padBottom, focus };
   useEffect(() => {
-    if (ready.current && focus) ref.current?.injectJavaScript(`window.focusOn(${focus.lat},${focus.lon},${focus.zoom ?? 16},${padBottom});true;`);
-  }, [focus, padBottom]);
+    if (ready.current && focus) ref.current?.injectJavaScript(`${focusJs(focus, latest.current.padTop, latest.current.padBottom)}true;`);
+  }, [focus]);
 
   const onMessage = (e: WebViewMessageEvent) => {
     const m = JSON.parse(e.nativeEvent.data) as { t: string; lat?: number; lon?: number; id?: string };
     if (m.t === 'ready') {
       ready.current = true;
-      ref.current?.injectJavaScript(`window.setData(${data});true;`);
+      // A focus that arrived before the page loaded (an early location fix) is applied now.
+      const f = latest.current.focus;
+      ref.current?.injectJavaScript(`window.setData(${data});${f ? focusJs(f, latest.current.padTop, latest.current.padBottom) : ''}true;`);
     } else if (m.t === 'press' && m.lat != null && m.lon != null) onPress?.({ lat: m.lat, lon: m.lon });
     else if (m.t === 'pin' && m.id) onPinPress?.(m.id);
   };

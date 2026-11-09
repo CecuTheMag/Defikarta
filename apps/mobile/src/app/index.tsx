@@ -1,56 +1,108 @@
 import { router } from 'expo-router';
-import { Building, Hand, LocateFixed, UserRound } from 'lucide-react-native';
+import { Building, ChevronUp, Hand, LocateFixed, UserRound, X } from 'lucide-react-native';
 import { BlurTargetView } from 'expo-blur';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, BackHandler, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AedCard } from '@/components/AedCard';
+import { AedDetails, AedHeader } from '@/components/AedCard';
 import { AedMap } from '@/components/AedMap';
+import type { Focus } from '@/components/LeafletMap';
 import { LearnEntry } from '@/components/LearnEntry';
+import { useReducedMotion } from '@/components/Pulse';
 import { SosButton } from '@/components/SosButton';
 import { Banner, Glass, IconButton, Mark, T } from '@/components/ui';
 import { useAedState } from '@/lib/AedContext';
 import { homeFor, useSession } from '@/lib/session';
 import { colors, radius, space, type } from '@/theme';
 
+const PAD = 16;
+
 /**
- * Home: the map is the product. One floating bar on top, one sheet below with the single most
- * important fact (the nearest usable AED) and the single most important action (someone collapsed).
+ * Home: the map is the product. One floating bar on top, one sheet below.
+ * The sheet rests collapsed (nearest AED in one line + „Някой припадна“) so the map stays visible.
+ * Tap or drag it up for status, route and the volunteer/organisation entries; selecting a pin opens it
+ * for that AED. Swipe down, ✕, a tap on the map or Back collapses it again. The SOS button is the
+ * sheet's fixed bottom, so it never leaves the screen whatever the sheet does.
  */
 export default function Home() {
   const { ranked, coords, locationStatus, offline } = useAedState();
   const { me } = useSession();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const reduced = useReducedMotion();
   const [selected, setSelected] = useState<string | null>(null);
-  const [focus, setFocus] = useState<{ lat: number; lon: number; zoom?: number } | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [size, setSize] = useState({ header: 72, body: 0, sos: 84, floating: 68 });
   // The map is the blur source for every glass surface on this screen (real blur on Android needs a target).
   const target = useRef<ComponentRef<typeof View>>(null);
+  const open = useRef(new Animated.Value(0)).current;
 
   const nearest = coords ? ranked[0] : undefined;
   const aed = useMemo(() => ranked.find((a) => a.id === selected) ?? nearest, [ranked, selected, nearest]);
   const openNow = ranked.filter((a) => a.open === 'open').length;
-  const sheetH = Math.min(440, height * 0.52);
+  const isSelected = !!selected && selected !== nearest?.id;
+  // What the sheet covers once it settles; the map centres in what is left (read only when it flies).
+  const sheetH = 2 * PAD + 2 + size.header + size.sos + (isOpen ? size.body : 0) + insets.bottom + 12 + size.floating;
+  const topH = insets.top + 90;
 
+  const animateTo = (to: 0 | 1) => {
+    // Opening shows the AED it talks about (with you, when we know where you are) above the taller sheet.
+    if (to === 1 && !isOpen && aed) setFocus(coords ? { ...coords, also: { lat: aed.lat, lon: aed.lon } } : { lat: aed.lat, lon: aed.lon, zoom: 16 });
+    setIsOpen(to === 1);
+    if (to === 0) setSelected(null);
+    if (reduced) open.setValue(to);
+    else Animated.spring(open, { toValue: to, useNativeDriver: false, speed: 18, bounciness: 0 }).start();
+  };
   const select = (id: string) => {
     setSelected(id);
+    animateTo(1);
     const a = ranked.find((x) => x.id === id);
     if (a) setFocus({ lat: a.lat, lon: a.lon, zoom: 16 });
   };
   const profile = () => router.push(me ? homeFor(me.user.roles) : '/login');
 
-  // First location fix: frame the nearest AED above the sheet, once.
+  // Drag the handle/header: follows the finger, then settles by direction (a flick) or by how far it got.
+  const start = useRef(0);
+  const latest = useRef({ animateTo, body: size.body });
+  latest.current = { animateTo, body: size.body };
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderGrant: () => open.stopAnimation((v) => (start.current = v)),
+      onPanResponderMove: (_, g) => open.setValue(Math.max(0, Math.min(1, start.current - g.dy / Math.max(1, latest.current.body)))),
+      onPanResponderRelease: (_, g) => {
+        const v = start.current - g.dy / Math.max(1, latest.current.body);
+        latest.current.animateTo(g.vy > 0.4 ? 0 : g.vy < -0.4 ? 1 : v > 0.5 ? 1 : 0);
+      },
+      onPanResponderTerminate: () => latest.current.animateTo(start.current > 0.5 ? 1 : 0),
+    }),
+  ).current;
+
+  // Android Back closes the sheet before it leaves the app.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!isOpen) return false;
+      animateTo(0);
+      return true;
+    });
+    return () => sub.remove();
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // First location fix: frame you and the nearest AED together, once.
   const framed = useRef(false);
   useEffect(() => {
-    if (framed.current || !nearest) return;
+    if (framed.current || !nearest || !coords) return;
     framed.current = true;
-    setFocus({ lat: nearest.lat, lon: nearest.lon, zoom: 15.5 });
-  }, [nearest]);
+    setFocus({ lat: coords.lat, lon: coords.lon, also: { lat: nearest.lat, lon: nearest.lon } });
+  }, [nearest, coords]);
+
+  const measure = (k: keyof typeof size) => (h: number) => setSize((s) => (Math.abs(s[k] - h) < 1 ? s : { ...s, [k]: h }));
 
   return (
     <View style={styles.fill}>
       <BlurTargetView ref={target} style={StyleSheet.absoluteFill}>
-        <AedMap aeds={ranked} coords={coords} selected={aed?.id} onSelect={select} focus={focus} padBottom={sheetH} />
+        <AedMap aeds={ranked} coords={coords} selected={isSelected || isOpen ? aed?.id : undefined} onSelect={select} onPress={() => isOpen && animateTo(0)} focus={focus} padTop={topH} padBottom={sheetH} />
       </BlurTargetView>
 
       {/* top bar */}
@@ -69,35 +121,58 @@ export default function Home() {
 
       {(offline || locationStatus === 'denied') && (
         <View style={[styles.notice, { top: insets.top + 84 }]}>
-          <Banner kind="caution">{locationStatus === 'denied' ? 'Без достъп до местоположението. Показваме всички дефибрилатори в града.' : 'Няма връзка. Показваме последните запазени данни.'}</Banner>
+          <Banner kind="caution">{locationStatus === 'denied' ? 'Без достъп до местоположението. Докосни дефибрилатор на картата.' : 'Няма връзка. Показваме последните запазени данни.'}</Banner>
         </View>
       )}
 
-      <View style={[styles.learn, { bottom: sheetH + insets.bottom + 12 }]}>
-        <LearnEntry blurTarget={target} />
-      </View>
-
-      {coords && (
-        <View style={[styles.locate, { bottom: sheetH + insets.bottom + 12 }]}>
-          <IconButton icon={LocateFixed} label="Към моето местоположение" onPress={() => { setSelected(null); setFocus({ ...coords, zoom: 15.5 }); }} />
+      {/* bottom sheet; the floating buttons ride on its top edge */}
+      <View style={[styles.sheetWrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
+        <View style={styles.floating} pointerEvents="box-none" onLayout={(e) => measure('floating')(e.nativeEvent.layout.height)}>
+          <LearnEntry blurTarget={target} />
+          {coords && <IconButton icon={LocateFixed} label="Към моето местоположение" onPress={() => { animateTo(0); setFocus({ ...coords, zoom: 15.5 }); }} size={52} />}
         </View>
-      )}
 
-      {/* bottom sheet */}
-      <View style={[styles.sheetWrap, { paddingBottom: insets.bottom + 12 }]}>
-        <Glass strong style={styles.sheet} blurTarget={target}>
-          <View style={styles.handle} />
-          {aed ? (
-            <AedCard aed={aed} overline={selected && selected !== nearest?.id ? 'Избран дефибрилатор' : 'Най-близкият дефибрилатор'} />
-          ) : (
-            <T v="caption">Търсим местоположението ти, за да покажем най-близкия дефибрилатор…</T>
-          )}
+        <Glass strong padded={false} style={styles.sheet} blurTarget={target}>
+          <View style={{ padding: PAD }}>
+            <View {...pan.panHandlers} onLayout={(e) => measure('header')(e.nativeEvent.layout.height)}>
+              <Pressable
+                onPress={() => aed && animateTo(isOpen ? 0 : 1)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}
+                accessibilityLabel={aed ? `${aed.name}. ${isOpen ? 'Скрий подробностите' : 'Покажи подробности и маршрут'}` : undefined}
+                style={styles.header}
+              >
+                <View style={styles.handle} />
+                {aed ? (
+                  <>
+                    <View style={styles.overRow}>
+                      <T v="overline" style={{ flex: 1 }}>{isSelected ? 'Избран дефибрилатор' : 'Най-близкият дефибрилатор'}</T>
+                      <View style={styles.toggle}>{isOpen ? <X size={18} color={colors.ink2} strokeWidth={2.4} /> : <ChevronUp size={18} color={colors.ink2} strokeWidth={2.4} />}</View>
+                    </View>
+                    <AedHeader aed={aed} compact={!isOpen} />
+                  </>
+                ) : (
+                  <T v="caption">{locationStatus === 'denied' || locationStatus === 'error' ? 'Докосни дефибрилатор на картата, за да видиш подробности.' : 'Търсим местоположението ти, за да покажем най-близкия дефибрилатор…'}</T>
+                )}
+              </Pressable>
+            </View>
 
-          <SosButton />
+            {/* details: height follows the open value; measured off-screen at full size */}
+            <Animated.View style={{ height: open.interpolate({ inputRange: [0, 1], outputRange: [0, size.body] }), opacity: open, overflow: 'hidden' }} pointerEvents={isOpen ? 'auto' : 'none'} aria-hidden={!isOpen}>
+              <View style={styles.measure} onLayout={(e) => measure('body')(e.nativeEvent.layout.height)}>
+                {aed && <AedDetails aed={aed} />}
+                {!isSelected && (
+                  <View style={styles.tiles}>
+                    <Tile icon={Hand} title="Доброволец" sub="Помагай наблизо" onPress={() => router.push('/volunteer')} />
+                    <Tile icon={Building} title="Организации" sub="Поддръжка на AED" onPress={() => router.push(me?.user.roles.includes('aed_owner') ? '/org' : '/login')} />
+                  </View>
+                )}
+              </View>
+            </Animated.View>
 
-          <View style={styles.tiles}>
-            <Tile icon={Hand} title="Доброволец" sub="Помагай наблизо" onPress={() => router.push('/volunteer')} />
-            <Tile icon={Building} title="Организации" sub="Поддръжка на AED" onPress={() => router.push(me?.user.roles.includes('aed_owner') ? '/org' : '/login')} />
+            <View onLayout={(e) => measure('sos')(e.nativeEvent.layout.height)} style={{ paddingTop: 12 }}>
+              <SosButton />
+            </View>
           </View>
         </Glass>
       </View>
@@ -111,9 +186,9 @@ function Tile({ icon: Icon, title, sub, onPress }: { icon: typeof Hand; title: s
       <View style={styles.tileIcon}>
         <Icon size={20} color={colors.ink} strokeWidth={2.2} />
       </View>
-      <View>
+      <View style={{ flex: 1 }}>
         <T v="bodyStrong" numberOfLines={1}>{title}</T>
-        <T v="caption" numberOfLines={1}>{sub}</T>
+        <T v="caption" numberOfLines={2}>{sub}</T>
       </View>
     </Pressable>
   );
@@ -126,12 +201,15 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingLeft: 12, paddingRight: 18 },
   word: { ...(type.heading as object), fontSize: 18, lineHeight: 22, color: colors.ink },
   notice: { position: 'absolute', left: space.lg, right: space.lg },
-  locate: { position: 'absolute', right: space.lg },
-  learn: { position: 'absolute', left: space.lg },
   sheetWrap: { position: 'absolute', left: 10, right: 10, bottom: 0 },
+  floating: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: 6, paddingBottom: 12 },
   sheet: { borderRadius: radius.xl },
-  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.lineStrong, marginTop: -4 },
+  header: { gap: 6 },
+  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.lineStrong, marginTop: -6, marginBottom: 4 },
+  overRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  toggle: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(11,13,18,0.06)', alignItems: 'center', justifyContent: 'center' },
+  measure: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: 12, gap: 12 },
   tiles: { flexDirection: 'row', gap: space.sm },
-  tile: { flex: 1, gap: 10, minHeight: 64, padding: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  tileIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
+  tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 60, padding: 12, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.75)', borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  tileIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
 });
