@@ -51,7 +51,7 @@ export function useAeds(coords: LatLon | null): { ranked: RankedAed[]; offline: 
       .finally(finish);
     fetch('/api/aeds')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { aeds: Aed[] }) => !cancelled && update({ local: j.aeds }))
+      .then((j: { aeds?: Aed[] }) => (Array.isArray(j?.aeds) ? !cancelled && update({ local: j.aeds }) : Promise.reject(new Error('bad /api/aeds'))))
       .catch(() => (apiOk = false))
       .finally(finish);
     return () => {

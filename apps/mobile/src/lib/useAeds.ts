@@ -33,14 +33,18 @@ export function useAeds() {
     (async () => {
       try {
         const cached = await AsyncStorage.getItem(CACHE_KEY);
-        if (cached && !cancelled) setData((current = JSON.parse(cached) as Cached));
+        const c = cached ? (JSON.parse(cached) as Cached) : null;
+        if (c && Array.isArray(c.osm) && Array.isArray(c.local) && !cancelled) setData((current = c));
       } catch {
         // Corrupt cache: ignore, seed is already shown.
       }
       const [osm, local] = await Promise.allSettled([fetchOsmAeds(), api<{ aeds: Aed[] }>('/api/aeds')]);
-      if (osm.status === 'fulfilled') update({ osm: osm.value });
-      if (local.status === 'fulfilled') update({ local: local.value.aeds });
-      if (!cancelled) setOffline(osm.status === 'rejected' && local.status === 'rejected');
+      // Only take what is really a list: a proxy or a wrong server address can answer 200 with something else.
+      const osmOk = osm.status === 'fulfilled' && Array.isArray(osm.value);
+      const localOk = local.status === 'fulfilled' && Array.isArray(local.value?.aeds);
+      if (osmOk) update({ osm: osm.value });
+      if (localOk) update({ local: local.value.aeds });
+      if (!cancelled) setOffline(!osmOk && !localOk);
     })();
     return () => {
       cancelled = true;

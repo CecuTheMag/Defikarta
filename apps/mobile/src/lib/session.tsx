@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, apiReady, hasToken, setToken } from './api';
+import { api, apiReady, hasToken, setAuthLostHandler, setToken } from './api';
 
 export type Role = 'public' | 'responder' | 'aed_owner' | 'verifier' | 'dispatcher' | 'admin';
 export interface Me {
@@ -53,6 +53,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+  useEffect(() => {
+    setAuthLostHandler(() => setMe(null));
+    return () => setAuthLostHandler(null);
+  }, []);
 
   const login = async (email: string) => {
     const r = await api<{ token: string }>('/api/login', { email });

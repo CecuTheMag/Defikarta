@@ -22,7 +22,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Switch, Text, Vibration, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LeafletMap, type Pin } from '@/components/LeafletMap';
@@ -153,6 +153,20 @@ function Console() {
     api('/api/rpc/push_location', { assignmentId: a.id, ...gps }).catch(() => undefined);
   }, [gps, sim, a?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Where alerts are measured from: a point you tapped on the map, otherwise the phone's GPS.
+  const here = pos ?? gps;
+  const hereKey = here ? `${here.lat.toFixed(5)},${here.lon.toFixed(5)}` : '';
+  const focus = useMemo(() => (here ? { ...here, zoom: 15 } : null), [hereKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Presence expires after 30 min on the server; while available with the app open, renew it every 10.
+  const available = data?.responder?.availability === 'around';
+  const hereRef = useRef(here);
+  hereRef.current = here;
+  useEffect(() => {
+    if (!available) return;
+    const t = setInterval(() => hereRef.current && api('/api/rpc/set_availability', { mode: 'around', ...hereRef.current }).catch(() => undefined), 10 * 60_000);
+    return () => clearInterval(t);
+  }, [available]);
+
   if (!data) return <Screen title="Доброволец"><T>{error ?? 'Зареждане…'}</T></Screen>;
   const r = data.responder;
 
@@ -161,7 +175,7 @@ function Console() {
 
   const missing: string[] = r.readiness.missing;
   const on = r.availability === 'around';
-  const toggle = () => act(() => api('/api/rpc/set_availability', on ? { mode: 'off' } : { mode: 'around', ...pos }));
+  const toggle = () => act(() => api('/api/rpc/set_availability', on ? { mode: 'off' } : { mode: 'around', ...here }));
 
   return (
     <Screen title="Доброволец" right={<DrillTag />}>
@@ -176,15 +190,15 @@ function Console() {
           <View style={{ flex: 1, gap: 4 }}>
             <T v="overline" tone="night">Известия</T>
             <T v="title" tone="night">{on ? 'Достъпен си' : 'Изключени'}</T>
-            <T v="caption" tone="night">{on ? 'Ще те известим, ако наблизо има случай, докато приложението е отворено.' : missing.length ? 'Довърши готовността отдолу, за да ги включиш.' : 'Задай позиция и ги включи.'}</T>
+            <T v="caption" tone="night">{on ? 'Ще те известим, ако наблизо има случай, докато приложението е отворено.' : missing.length ? 'Довърши готовността отдолу, за да ги включиш.' : here ? 'Включи ги, когато можеш да помогнеш.' : 'Разреши местоположението или докосни картата отдолу.'}</T>
           </View>
         </Row>
         <Button
           size="lg"
-          kind={on || !pos || missing.length > 0 ? 'nightGhost' : 'primary'}
+          kind={on || !here || missing.length > 0 ? 'nightGhost' : 'primary'}
           icon={on ? BellOff : BellRing}
           title={on ? 'Изключи известията' : 'Достъпен съм'}
-          disabled={!on && (!pos || missing.length > 0)}
+          disabled={!on && (!here || missing.length > 0)}
           onPress={toggle}
         />
         <Row gap={28}>
@@ -205,14 +219,14 @@ function Console() {
 
       <Card style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
         <View style={{ height: 220 }}>
-          <LeafletMap center={pos ?? gps ?? { lat: 42.4258, lon: 25.6345 }} pins={pos ? [{ id: 'me', kind: 'me', ...pos }] : []} onPress={setPos} focus={pos ? { ...pos, zoom: 15 } : null} />
+          <LeafletMap center={here ?? { lat: 42.4258, lon: 25.6345 }} pins={here ? [{ id: 'me', kind: 'me', ...here }] : []} onPress={setPos} focus={focus} />
         </View>
         <View style={{ padding: space.lg, gap: space.md }}>
           <T v="heading">Твоята позиция</T>
           <T v="caption">Докосни картата или ползвай GPS. Без следене на живо: точната позиция се споделя само в приет случай и се трие при затварянето му.</T>
           <Row>
             <Chip icon={LocateFixed} label="Моята позиция (GPS)" onPress={() => gps && setPos(gps)} />
-            {on && pos && <Chip icon={MapPin} label="Обнови" onPress={() => act(() => api('/api/rpc/set_availability', { mode: 'around', ...pos }))} />}
+            {on && here && <Chip icon={MapPin} label="Обнови" onPress={() => act(() => api('/api/rpc/set_availability', { mode: 'around', ...here }))} />}
           </Row>
         </View>
       </Card>
@@ -281,11 +295,13 @@ function Active({ active, pos, target, sim, setSim, act, err }: { active: any; p
   if (pos) pins.push({ id: 'me', kind: a.role === 'cpr' ? 'cpr' : 'runner', ...pos });
   const title = a.role === 'cpr' ? 'Към пациента' : a.status === 'en_route' ? 'Вземи дефибрилатора' : 'Занеси дефибрилатора';
   const d = pos && target ? formatDistance(distanceM(pos, target)) : null;
+  // Re-centre when the target changes (patient → AED → patient), not on every one-second re-render.
+  const focus = useMemo(() => (target ? { ...target, zoom: 16 } : null), [target?.lat, target?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <View style={StyleSheet.absoluteFill}>
-        <LeafletMap center={target ?? active.incident.pos} zoom={16} pins={pins} lines={pos && target ? [{ points: [pos, target], color: colors.blue, dashed: true }] : []} focus={target ? { ...target, zoom: 16 } : null} padBottom={360} />
+        <LeafletMap center={target ?? active.incident.pos} zoom={16} pins={pins} lines={pos && target ? [{ points: [pos, target], color: colors.blue, dashed: true }] : []} focus={focus} padBottom={360} />
       </View>
       <View style={{ position: 'absolute', left: 0, right: 0, top: 0 }}>
         <Header right={<DrillTag />} />

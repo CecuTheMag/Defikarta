@@ -35,6 +35,12 @@ export async function setServer(url: string) {
   await AsyncStorage.setItem(K.server, server);
 }
 
+// The session listens here, so an expired login (e.g. the drill server restarted) drops back to „Вход“ instead of a dead end.
+let onAuthLost: (() => void) | null = null;
+export function setAuthLostHandler(fn: (() => void) | null) {
+  onAuthLost = fn;
+}
+
 export async function setToken(t: string | null) {
   token = t;
   await (t ? AsyncStorage.setItem(K.token, t) : AsyncStorage.removeItem(K.token));
@@ -52,6 +58,10 @@ export async function api<T = any>(path: string, body?: unknown): Promise<T> {
       signal: ctrl.signal,
     });
     const json = await res.json().catch(() => ({}));
+    if (res.status === 401 && token) {
+      await setToken(null);
+      onAuthLost?.();
+    }
     if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
     return json as T;
   } catch (e) {
