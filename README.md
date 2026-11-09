@@ -64,7 +64,20 @@ The map is OpenStreetMap drawn by Leaflet inside the app, so no Google Maps key 
 
 Why each piece exists (business model, the law, firstaid.bg, the mentor's five volunteer questions): [docs/SUNDAY.md](docs/SUNDAY.md).
 
-Test accounts (drill only): `responder@`, `dispatcher@`, `verifier@`, `owner@`, `admin@` + `drill.defikarta.bg`, no password. The simulated responders move ×6 faster than real life (`SIM_SPEED`).
+Test accounts (drill only), each `<name>@drill.defikarta.bg`, no password:
+
+| Account | Who | Use it to test |
+|---|---|---|
+| `ready@` | Volunteer, fully onboarded | Switch on „Достъпен съм“ and receive a drill alert straight away |
+| `responder@` | Volunteer, certificate approved | Terms, location consent and the knowledge check in the app |
+| `pending@` | Volunteer, certificate waiting | Approving it as `verifier@` in the web console |
+| `public@` | Ordinary user | Becoming a volunteer from scratch |
+| `owner@` | Safety officer of the demo company | Equipment, maintenance dates, listing an AED on the map |
+| `dispatcher@` | Dispatcher (web) | Live map, „Стартирай учение“ |
+| `verifier@` | Verifier, e.g. БЧК (web) | Certificates and AED submissions |
+| `admin@` | Admin (web) | Everything + feature flags, audit, reset |
+
+Any other email also works and creates a new ordinary user. The simulated responders move ×6 faster than real life (`SIM_SPEED`).
 
 **Not built yet** (see [BLUEPRINT](docs/BLUEPRINT.md)): Supabase/Postgres + RLS (the server is in-memory and resets on restart), push notifications, responder zones, photo upload, real e-mail for reminders, per-organisation maintenance intervals, population-weighted coverage, the native app's responder mode, OSRM walking times, SMS fallback.
 

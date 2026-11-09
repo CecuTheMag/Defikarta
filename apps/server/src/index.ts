@@ -148,7 +148,7 @@ const route = (method: string, path: string, fn: Handler) => routes.push({ metho
 route('GET', '/api/config', () => ({ env: 'drill', region: REGION, flags: store.flags, simSpeed: SIM_SPEED }));
 
 route('POST', '/api/login', ({ body }) => {
-  // Drill environment: no password, the six test accounts are public. Production uses email OTP (BLUEPRINT §14).
+  // Drill environment: no password, the test accounts (TEST_ACCOUNTS in db.ts) are public. Production uses email OTP (BLUEPRINT §14).
   const email = text(body.email, 120)?.toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+$/.test(email)) throw new HttpError(400, 'Невалиден имейл.');
   let user = [...store.users.values()].find((u) => u.email === email);

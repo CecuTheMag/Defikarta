@@ -1,4 +1,4 @@
-import { addDays, DEFAULT_DISPATCH, isoDate, SEED_AEDS, STARA_ZAGORA_CENTER, type Aed, type AssignmentRole, type AssignmentStatus, type CheckKey, type EquipmentDates, type EquipmentKind, type IncidentState, type LatLon, type PublicPlaceChecklist, type QuietHours, type SceneSafety } from '@defikarta/core';
+import { addDays, DEFAULT_DISPATCH, isoDate, SEED_AEDS, STARA_ZAGORA_CENTER, TERMS_VERSION, type Aed, type AssignmentRole, type AssignmentStatus, type CheckKey, type EquipmentDates, type EquipmentKind, type IncidentState, type LatLon, type PublicPlaceChecklist, type QuietHours, type SceneSafety } from '@defikarta/core';
 
 /**
  * In-memory store shaped like the BLUEPRINT §4 tables. Phase 1 swaps this for Postgres/Supabase
@@ -225,8 +225,12 @@ function demoOrg(today: string) {
   return { org, sites, equipment };
 }
 
+/** Open drill accounts; the email is the id without „u-“ @drill.defikarta.bg (e.g. ready@drill.defikarta.bg). */
 const TEST_ACCOUNTS: { id: string; name: string; roles: Role[] }[] = [
+  { id: 'u-ready', name: 'Тест Доброволец (готов)', roles: ['public', 'responder'] },
   { id: 'u-responder', name: 'Тест Доброволец', roles: ['public', 'responder'] },
+  { id: 'u-pending', name: 'Тест Доброволец (чака проверка)', roles: ['public', 'responder'] },
+  { id: 'u-public', name: 'Тест Потребител', roles: ['public'] },
   { id: 'u-owner', name: 'Тест Отговорник безопасност', roles: ['public', 'aed_owner'] },
   { id: 'u-verifier', name: 'Тест Верификатор (БЧК)', roles: ['public', 'verifier'] },
   { id: 'u-dispatcher', name: 'Тест Диспечер', roles: ['public', 'dispatcher'] },
@@ -301,6 +305,33 @@ export class Store {
       offerCount: 0,
       bot: false,
       certificate: { issuer: 'БЧК Стара Загора (тест)', issuedOn: '2026-09-01', status: 'approved' },
+    });
+    // „ready“ has done everything, so a drill can start straight away: switch on „Достъпен съм“ and wait for an alert.
+    this.responders.set('u-ready', {
+      userId: 'u-ready',
+      scope: 'street',
+      status: 'verified',
+      verifiedUntil: '2028-09-01',
+      availability: 'off',
+      acceptCount: 0,
+      offerCount: 0,
+      bot: false,
+      certificate: { issuer: 'БЧК Стара Загора (тест)', issuedOn: '2026-09-01', status: 'approved' },
+      termsVersion: TERMS_VERSION,
+      termsAt: Date.now(),
+      locationConsentAt: Date.now(),
+      quizPassedAt: Date.now(),
+    });
+    // „pending“ has sent a certificate; a verifier approves it in the web console (Конзола → Проверка).
+    this.responders.set('u-pending', {
+      userId: 'u-pending',
+      scope: 'street',
+      status: 'pending',
+      availability: 'off',
+      acceptCount: 0,
+      offerCount: 0,
+      bot: false,
+      certificate: { issuer: 'БЧК Стара Загора (тест)', issuedOn: '2026-10-20', status: 'pending' },
     });
     // Bots are pre-onboarded; the human test volunteer goes through terms, consent and the knowledge check in the UI.
     for (const b of botResponders()) {

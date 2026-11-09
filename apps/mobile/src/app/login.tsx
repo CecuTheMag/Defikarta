@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Building, ChevronDown, ChevronRight, Hand, Server, type LucideIcon } from 'lucide-react-native';
+import { Building, ChevronDown, ChevronRight, Hand, Hourglass, Server, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Banner, Button, Card, DrillTag, ErrorText, Field, Mark, Screen, T } from '@/components/ui';
@@ -8,7 +8,10 @@ import { homeFor, useSession } from '@/lib/session';
 import { colors, radius, space } from '@/theme';
 
 const ACCOUNTS: [string, string, string, LucideIcon][] = [
-  ['responder', 'Доброволец', 'Известия за случаи наблизо, „Тръгвам“ и „Нося AED“', Hand],
+  ['ready', 'Доброволец, готов', 'Всичко е попълнено: включи „Достъпен съм“ и чакай случай', Hand],
+  ['responder', 'Доброволец, нов', 'Минава условията, съгласието и проверката на знанията', Hand],
+  ['pending', 'Доброволец, чака проверка', 'Удостоверението чака одобрение от верификатор', Hourglass],
+  ['public', 'Потребител', 'Обикновен профил, още не е доброволец', UserRound],
   ['owner', 'Отговорник безопасност', 'Дефибрилатори, пожарогасители и аптечки на фирмата', Building],
 ];
 
@@ -82,7 +85,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  account: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 84, padding: 16, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, padding: 14, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   accIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
   adv: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 4 },
 });
