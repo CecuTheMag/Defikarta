@@ -6,6 +6,9 @@ import { colors } from '@/theme';
 
 /** Every screen draws its own header (components/ui Header), so the platform header is off everywhere. */
 export default function RootLayout() {
+  // On a desktop browser public/index.html shows the phone-frame page and embeds the app in an iframe.
+  // The outer page must not start a second copy (location prompt, API calls), so it renders nothing here.
+  if ((globalThis as Record<string, unknown>).__DEFIKARTA_SHELL__) return null;
   return (
     <SessionProvider>
       <AedProvider>

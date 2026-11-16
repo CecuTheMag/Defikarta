@@ -9,6 +9,23 @@
     <link rel="icon" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <title>ДефиКарта</title>
+    <script>
+      /* Desktop browsers get a page that shows the phone app in a phone frame (see #desk below).
+         The app itself is embedded in an iframe, so it always sees a real phone-sized viewport.
+         The outer page must not start a second copy of the app: src/app/_layout.tsx returns early
+         when __DEFIKARTA_SHELL__ is set. Phones, installed PWAs, the embedded copy and ?app=1 are untouched. */
+      (function () {
+        var ua = navigator.userAgent || '';
+        var touchDevice = /Android|iPhone|iPad|iPod|Mobi/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+        var installed = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+        var embedded = window.top !== window.self;
+        var optOut = /[?&]app=1\b/.test(location.search);
+        if (innerWidth >= 900 && !touchDevice && !installed && !embedded && !optOut) {
+          window.__DEFIKARTA_SHELL__ = true;
+          document.documentElement.setAttribute('data-shell', '1');
+        }
+      })();
+    </script>
     <style>
       /* Native builds embed Manrope via expo-font (app.json); the web build loads the same files. */
       @font-face { font-family: 'Manrope'; font-weight: 400; font-display: swap; src: url('/fonts/Manrope_400Regular.ttf') format('truetype'); }
@@ -22,11 +39,155 @@
       body { overflow: hidden; }
       #root { display: flex; height: 100%; flex: 1; }
     </style>
+    <style id="desk-style">
+      #desk { display: none; }
+      html[data-shell] #root { display: none; }
+      html[data-shell] body { overflow: auto; background: #07080b; }
+      html[data-shell] #desk {
+        display: block; position: relative; min-height: 100%; overflow: hidden;
+        font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; color: #f5f6f8;
+        background: #07080b; -webkit-font-smoothing: antialiased;
+      }
+      #desk * { box-sizing: border-box; }
+      #desk .glow {
+        position: absolute; inset: 0; pointer-events: none;
+        background:
+          radial-gradient(60vw 60vw at 78% 38%, rgba(225, 17, 45, .30), rgba(225, 17, 45, 0) 62%),
+          radial-gradient(40vw 40vw at 8% 105%, rgba(14, 159, 110, .16), rgba(14, 159, 110, 0) 65%);
+      }
+      #desk .wrap {
+        position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        gap: clamp(40px, 7vw, 130px); padding: 28px clamp(28px, 5vw, 80px);
+      }
+      #desk .copy { width: min(520px, 100%); flex: 0 1 520px; }
+      #desk .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 34px; }
+      #desk .brand img { width: 40px; height: 40px; border-radius: 11px; display: block; }
+      #desk .brand b { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+      #desk .eyebrow {
+        display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 99px;
+        background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12);
+        font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #ffb3bd;
+      }
+      #desk .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: #ff5468; box-shadow: 0 0 0 4px rgba(255, 84, 104, .22); }
+      #desk h1 { margin: 20px 0 0; font-size: clamp(38px, 4.4vw, 58px); line-height: 1.04; font-weight: 800; letter-spacing: -.035em; }
+      #desk .lead { margin: 18px 0 0; font-size: 17px; line-height: 1.55; color: #b4b8c2; max-width: 470px; }
+      #desk ul { list-style: none; margin: 30px 0 0; padding: 0; display: grid; gap: 16px; }
+      #desk li { display: grid; grid-template-columns: 42px 1fr; gap: 14px; align-items: start; }
+      #desk li .ic { width: 42px; height: 42px; border-radius: 13px; background: rgba(225, 17, 45, .16); display: grid; place-items: center; color: #ff6b7d; }
+      #desk li svg { width: 20px; height: 20px; }
+      #desk li b { display: block; font-size: 15.5px; font-weight: 700; }
+      #desk li span { display: block; margin-top: 2px; font-size: 14px; line-height: 1.45; color: #9ca1ad; }
+      #desk .qr {
+        margin-top: 34px; display: flex; align-items: center; gap: 18px; padding: 14px 20px 14px 14px;
+        border-radius: 20px; background: #fff; color: #0b0d12; width: fit-content; max-width: 100%;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+      }
+      #desk .qr .code { width: 112px; height: 112px; flex: none; display: block; }
+      #desk .qr .code svg { width: 100%; height: 100%; display: block; }
+      #desk .qr b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+      #desk .qr span { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; color: #4a505c; max-width: 190px; }
+      #desk .qr em { display: block; margin-top: 8px; font-style: normal; font-size: 12.5px; font-weight: 700; color: #b30c22; word-break: break-all; }
+      #desk .meta { margin-top: 26px; font-size: 13px; line-height: 1.5; color: #7d8390; }
+      #desk .meta a { color: #b4b8c2; text-decoration: underline; text-underline-offset: 3px; }
+      #desk .stage { flex: none; width: calc(418px * var(--k, 1)); height: calc(872px * var(--k, 1)); position: relative; }
+      #desk .phone {
+        position: absolute; left: 0; top: 0; width: 418px; height: 872px; padding: 14px; border-radius: 62px;
+        background: linear-gradient(160deg, #2a2e39, #12141a 45%, #1c1f27);
+        box-shadow: 0 0 0 1.5px #3b404c, 0 0 0 4px #0b0c10, 0 50px 110px rgba(0, 0, 0, .6), 0 0 120px rgba(225, 17, 45, .18);
+        transform: scale(var(--k, 1)); transform-origin: 0 0;
+      }
+      #desk .phone:before, #desk .phone:after {
+        content: ''; position: absolute; width: 4px; border-radius: 3px; background: #2a2e39; left: -6px;
+      }
+      #desk .phone:before { top: 150px; height: 64px; }
+      #desk .phone:after { top: 238px; height: 64px; }
+      #desk .screen { width: 390px; height: 844px; border-radius: 48px; overflow: hidden; background: #f3f4f6; position: relative; }
+      #desk .screen iframe { width: 390px; height: 844px; border: 0; display: block; background: #f3f4f6; }
+      #desk .hint { position: absolute; left: 0; right: 0; bottom: -34px; text-align: center; font-size: 13px; color: #7d8390; transform: scale(1); }
+      /* Keep copy and phone on one screen: the feature list only shows when there is room for it. */
+      @media (max-width: 1080px), (max-height: 940px) { #desk .copy ul { display: none; } #desk .brand { margin-bottom: 24px; } #desk .qr { margin-top: 26px; } }
+      @media (max-height: 760px) { #desk h1 { font-size: 36px; } #desk .lead { font-size: 15.5px; margin-top: 12px; } #desk .meta { margin-top: 16px; } }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <div id="desk" aria-label="ДефиКарта на компютър">
+      <div class="glow"></div>
+      <div class="wrap">
+        <section class="copy">
+          <div class="brand"><img src="/icon-192.png" alt="" /><b>ДефиКарта</b></div>
+          <span class="eyebrow"><i></i>Приложение за телефон</span>
+          <h1>Най-близкият дефибрилатор. За секунди.</h1>
+          <p class="lead">Карта на дефибрилаторите в Стара Загора, указания за сърдечен масаж с глас и метроном, и първо винаги 112. Работи и без интернет. Вдясно е същото приложение като на телефона, можете да го пробвате.</p>
+          <ul>
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+              <div><b>112 винаги първо</b><span>При „Някой припадна“ екранът за 112 не се прескача и не се подрежда наново.</span></div>
+            </li>
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+              <div><b>Масаж с глас и метроном</b><span>Указания по ERC 2021 и метроном 110 в минута.</span></div>
+            </li>
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+              <div><b>Най-близкият уред</b><span>Разстояние, време пеша и маршрут. Непознатите часове се показват като неизвестни.</span></div>
+            </li>
+          </ul>
+          <div class="qr">
+            <div class="code" id="desk-qr" role="img" aria-label="QR код към ДефиКарта"></div>
+            <div>
+              <b>Отворете на телефона</b>
+              <span>Насочете камерата към кода, за да получите местоположение и звук.</span>
+              <em id="desk-url"></em>
+            </div>
+          </div>
+          <p class="meta">Проект на ученици от Стара Загора · Идейник 2026 · Данните за уредите са отворени (OpenStreetMap). <a href="/?app=1">Покажи на цял екран</a></p>
+        </section>
+        <div class="stage" id="desk-stage">
+          <div class="phone"><div class="screen" id="desk-screen"></div></div>
+        </div>
+      </div>
+    </div>
+
     <script>
+      if (window.__DEFIKARTA_SHELL__) {
+        (function () {
+          var base = location.origin + '/';
+          document.getElementById('desk-url').textContent = location.host;
+          var iframe = document.createElement('iframe');
+          iframe.title = 'ДефиКарта: приложение';
+          iframe.setAttribute('allow', 'geolocation; autoplay; clipboard-write; web-share');
+          iframe.src = location.pathname + location.search + location.hash;
+          document.getElementById('desk-screen').appendChild(iframe);
+
+          var s = document.createElement('script');
+          s.src = '/vendor/qrcode.js';
+          s.onload = function () {
+            try {
+              var qr = qrcode(0, 'M');
+              qr.addData(base);
+              qr.make();
+              document.getElementById('desk-qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+            } catch (e) { /* the page works without the code */ }
+          };
+          document.head.appendChild(s);
+
+          var stage = document.getElementById('desk-stage');
+          function fit() {
+            var k = Math.min(1, (innerHeight - 40) / 872);
+            stage.style.setProperty('--k', String(Math.max(k, 0.55)));
+          }
+          fit();
+          var wide = true;
+          addEventListener('resize', function () {
+            fit();
+            // Narrowing the window to phone width: reload so the app fills it, like on a phone.
+            if (innerWidth < 900 && wide) { wide = false; location.reload(); }
+          });
+        })();
+      }
       if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
     </script>
   </body>

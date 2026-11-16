@@ -2,7 +2,7 @@
 // Bump CACHE on every deploy; activate deletes every other cache, including ones left by older builds
 // served from this origin, so a stale shell can never win over the current app.
 // /api is never cached: it carries personal data (account, location) and must not outlive the session.
-const CACHE = 'defikarta-v6';
+const CACHE = 'defikarta-v7';
 // A tab on the 112 or CPR screen is never reloaded under the user; it picks up the new build next time.
 const BUSY = /^\/(emergency|cpr)\b/;
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.add('/'))); });
