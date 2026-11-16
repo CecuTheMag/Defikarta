@@ -75,24 +75,61 @@ The site ships inside the Expo web export (`apps/mobile/public`), so there is no
 3. **Bystander**: „Някой припадна“ → 112 → CPR guide → „Безопасно ли е?“ → „Извикай обучени хора наблизо“ (flag `public_alerts`). „Не“ sends nobody.
 4. **Add an AED → verify**: „Добави AED“, then Верификатор → Конзола → Проверка.
 5. **Coverage**: Покритие shows the walking-time heatmap for now / weekday / night / 24/7-only.
-6. **Organisation** (the paid side): log in as Отговорник безопасност → Организация. A demo employer with 3 sites and 10 AEDs, extinguishers and first-aid kits: what is due, reminders (simulated e-mails), the draft-ordinance checklist, a CSV report. The demo employer's AEDs stay in its registry; press „Покажи на картата“ on one to list it during a drill. A listed AED shows „✓ поддръжката се следи“ or „⚠ просрочена“ on the map, and one with an expired battery or pads is never offered to a runner.
+6. **Organisation** (the paid side): log in as Отговорник безопасност → Организация. A demo employer with 3 sites and 10 items (4 AEDs, extinguishers, first-aid kits): what is due, reminders (simulated e-mails), the draft-ordinance checklist, a CSV report. The demo employer's AEDs stay in its registry; press „Покажи на картата“ on one to list it during a drill. A listed AED shows „✓ поддръжката се следи“ or „⚠ просрочена“ on the map, and one with an expired battery or pads is never offered to a runner.
 
 Why each piece exists (business model, the law, firstaid.bg, the mentor's five volunteer questions): [docs/SUNDAY.md](docs/SUNDAY.md).
 
-Test accounts (drill only), each `<name>@drill.defikarta.bg`, no password:
+### Test accounts (drill only)
+
+26 accounts, every one `<name>@drill.defikarta.bg`, no password. They are seeded in [`apps/server/src/db.ts`](apps/server/src/db.ts) and come back on every server restart or „Нулирай учебната среда“. The login screens list them too. Any other email also works and creates an ordinary user.
+
+**Volunteers, one per step.** Onboarding is: certificate approved → terms → location consent → knowledge check → „Достъпен съм“.
+
+| Account | Where it stands | Use it to test |
+|---|---|---|
+| `pending@` | Certificate waiting for a verifier | Approving it as `verifier@` in the web console |
+| `rejected@` | Certificate rejected, with a reason | Reading the reason and sending a new certificate |
+| `responder@` | Certificate approved, nothing else done | Terms, location consent and the knowledge check in the app |
+| `consent@` | Terms accepted | Location consent and the knowledge check |
+| `quiz@` | Terms and consent done | Only the knowledge check |
+| `ready@` | Everything done | Switch on „Достъпен съм“ and receive a drill alert straight away |
+
+**Volunteers, special cases**
+
+| Account | Where it stands | Use it to test |
+|---|---|---|
+| `expired@` | Certificate past its valid-until date | No alerts until it is renewed |
+| `suspended@` | Suspended | No alerts |
+| `minor@` | Under 18 (school scope) | Drills at school only, never street cases |
+| `quiet@` | Ready, quiet hours all day | Never alerted, even when available |
+| `multi@` | Ready volunteer and co-owner of „Мол Галерия“ | Two roles in one account |
+
+**Ordinary users:** `public@` (becoming a volunteer from scratch, suggesting an AED with „Добави AED“) and `public2@` (a second profile).
+
+**Organisations**, one owner account per situation. Every date is relative to the day the server starts, and no device is on the public map until you press „Покажи на картата“.
+
+| Account | Organisation | What it holds |
+|---|---|---|
+| `owner@` | ДЕМО Тракия Метал ООД | 3 sites, 10 items: every status (in time, due soon, overdue, missing) |
+| `owner2@` | same company | A second owner who sees the same registry |
+| `owner-ok@` | ДЕМО Мол Галерия ЕООД | 2 sites, 3 AEDs, 2 extinguishers, 1 first-aid kit; nothing overdue (an AED always shows „скоро“, it needs a check every 30 days) |
+| `owner-late@` | ДЕМО Склад Север ООД | 1 site, everything overdue; the AED with an expired battery and pads is never offered to a runner |
+| `owner-new@` | ДЕМО Нова Фирма ЕООД | 1 site, nothing registered yet: the empty state |
+| `school@` | ДЕМО ОУ „Тест“ | 2 buildings, 2 AEDs (pads expire in 19 days), an extinguisher and a kit |
+| `municipality@` | ДЕМО Община | 5 sites (school, kindergarten, sports hall, pool, community centre) with AEDs in every state, including one that was never inspected |
+
+**Staff and partners (web)**
 
 | Account | Who | Use it to test |
 |---|---|---|
-| `ready@` | Volunteer, fully onboarded | Switch on „Достъпен съм“ and receive a drill alert straight away |
-| `responder@` | Volunteer, certificate approved | Terms, location consent and the knowledge check in the app |
-| `pending@` | Volunteer, certificate waiting | Approving it as `verifier@` in the web console |
-| `public@` | Ordinary user | Becoming a volunteer from scratch |
-| `owner@` | Safety officer of the demo company | Equipment, maintenance dates, listing an AED on the map |
-| `dispatcher@` | Dispatcher (web) | Live map, „Стартирай учение“ |
-| `verifier@` | Verifier, e.g. БЧК (web) | Certificates and AED submissions |
-| `admin@` | Admin (web) | Everything + feature flags, audit, reset |
+| `dispatcher@` | Dispatcher | Live map, „Стартирай учение“ |
+| `dispatcher2@` | Dispatcher, ЦСМП | The same role under another name |
+| `verifier@` | Verifier, БЧК | Certificates and AED suggestions |
+| `verifier2@` | Verifier, „Първите три минути“ | The same role from the other partner |
+| `trainer@` | Instructor: dispatcher and verifier | Running a drill and approving on the spot |
+| `admin@` | Admin | Everything + feature flags, audit, reset |
 
-Any other email also works and creates a new ordinary user. The simulated responders move ×6 faster than real life (`SIM_SPEED`).
+The verifier's list starts with two reviewed suggestions (one rejected, one duplicate) and no pending one on purpose: approving a made-up point would put it on the public map. Create one as `public@` with „Добави AED“. The 18 simulated responders (`bot-1@` … `bot-18@`) exist for the drills and are not meant for logging in. They move ×6 faster than real life (`SIM_SPEED`).
 
 **Not built yet** (see [BLUEPRINT](docs/BLUEPRINT.md)): Supabase/Postgres + RLS (the server is in-memory and resets on restart), push notifications, responder zones, photo upload, real e-mail for reminders, per-organisation maintenance intervals, population-weighted coverage, the native app's responder mode, OSRM walking times, SMS fallback.
 

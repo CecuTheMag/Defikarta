@@ -93,6 +93,7 @@ button { font: inherit; cursor: pointer; }
 .pickmap { height: 260px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; }
 .pickmap.tall { height: 340px; }
 .accounts { display: grid; gap: 10px; }
+.acc-group { margin: 22px 0 8px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .account { text-align: left; background: var(--soft); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 2px; }
 .account span { color: var(--muted); font-size: 14px; }
 .account code, code { font-size: 12px; color: #444; }

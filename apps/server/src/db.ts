@@ -202,7 +202,7 @@ function botResponders(): { user: User; responder: Responder }[] {
  */
 function demoOrg(today: string) {
   const d = (n: number) => addDays(today, n);
-  const org: Org = { id: 'org-demo', name: 'ДЕМО Тракия Метал ООД', ownerIds: ['u-owner'] };
+  const org: Org = { id: 'org-demo', name: 'ДЕМО Тракия Метал ООД', ownerIds: ['u-owner', 'u-owner2'] };
   const sites: Site[] = [
     { id: 'site-1', orgId: org.id, name: 'Завод 1', address: 'Индустриална зона (ДЕМО)', lat: 42.4156, lon: 25.6552 },
     { id: 'site-2', orgId: org.id, name: 'Завод 2', address: 'Северна промишлена зона (ДЕМО)', lat: 42.4371, lon: 25.6168 },
@@ -225,6 +225,67 @@ function demoOrg(today: string) {
   return { org, sites, equipment };
 }
 
+/**
+ * More fake organisations, one per situation: nothing overdue, everything overdue, nothing registered yet,
+ * a school and a municipality with several kinds of buildings. Same rule as the first one: dates are relative to
+ * today, positions are inside the city, and no device is listed on the public map automatically.
+ */
+function moreOrgs(today: string) {
+  const d = (n: number) => addDays(today, n);
+  const full = { signage: true, directionSigns: true, instructionsBg: true, accessible: true };
+  const none = { signage: false, directionSigns: false, instructionsBg: false, accessible: false };
+  const orgs: Org[] = [
+    { id: 'org-ok', name: 'ДЕМО Мол Галерия ЕООД (в срок, нищо просрочено)', ownerIds: ['u-owner-ok', 'u-multi'] },
+    { id: 'org-late', name: 'ДЕМО Склад Север ООД (всичко просрочено)', ownerIds: ['u-owner-late'] },
+    { id: 'org-new', name: 'ДЕМО Нова Фирма ЕООД (още нищо въведено)', ownerIds: ['u-owner-new'] },
+    { id: 'org-school', name: 'ДЕМО ОУ „Тест“ (общинско училище)', ownerIds: ['u-school'] },
+    { id: 'org-municipality', name: 'ДЕМО Община (общински обекти)', ownerIds: ['u-municipality'] },
+  ];
+  const site = (id: string, orgId: string, name: string, lat: number, lon: number): Site => ({ id, orgId, name, address: `${name}, адрес (ДЕМО)`, lat, lon });
+  const sites: Site[] = [
+    site('site-ok-1', 'org-ok', 'Мол, партер', 42.4338, 25.662),
+    site('site-ok-2', 'org-ok', 'Мол, паркинг', 42.4334, 25.6628),
+    site('site-late-1', 'org-late', 'Склад', 42.412, 25.648),
+    site('site-new-1', 'org-new', 'Нов офис', 42.429, 25.641),
+    site('site-sch-1', 'org-school', 'Сграда на училището', 42.422, 25.618),
+    site('site-sch-2', 'org-school', 'Физкултурен салон', 42.4224, 25.619),
+    site('site-mun-1', 'org-municipality', 'Основно училище', 42.43, 25.625),
+    site('site-mun-2', 'org-municipality', 'Детска градина', 42.418, 25.635),
+    site('site-mun-3', 'org-municipality', 'Спортна зала', 42.44, 25.65),
+    site('site-mun-4', 'org-municipality', 'Басейн', 42.415, 25.66),
+    site('site-mun-5', 'org-municipality', 'Читалище', 42.427, 25.633),
+  ];
+  const e = (orgId: string, x: Omit<Equipment, 'orgId'>): Equipment => ({ orgId, ...x });
+  const goodAed = { batteryExpires: d(700), padsExpires: d(420), lastInspection: d(-6), lastService: d(-90) };
+  const goodExt = { lastInspection: d(-20), lastService: d(-100), lastHydro: d(-400) };
+  const equipment: Equipment[] = [
+    // everything in order
+    e('org-ok', { id: 'eq-ok-1', siteId: 'site-ok-1', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'OK-1', locationHint: 'главен вход, външен шкаф', openingHours: '24/7', publicPlace: full, dates: goodAed }),
+    e('org-ok', { id: 'eq-ok-2', siteId: 'site-ok-1', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'OK-2', locationHint: 'информация, ет. 1', openingHours: 'Mo-Su 09:00-21:00', publicPlace: full, dates: goodAed }),
+    e('org-ok', { id: 'eq-ok-3', siteId: 'site-ok-2', kind: 'aed', model: 'ДЕМО AED модел A', serial: 'OK-3', locationHint: 'паркинг, до касата', openingHours: '24/7', publicPlace: full, dates: goodAed }),
+    e('org-ok', { id: 'eq-ok-4', siteId: 'site-ok-1', kind: 'extinguisher', model: 'Прахов 6 кг', serial: 'OK-P1', locationHint: 'коридор', dates: goodExt }),
+    e('org-ok', { id: 'eq-ok-5', siteId: 'site-ok-2', kind: 'extinguisher', model: 'CO₂ 5 кг', serial: 'OK-C1', locationHint: 'ел. табло', dates: goodExt }),
+    e('org-ok', { id: 'eq-ok-6', siteId: 'site-ok-1', kind: 'first_aid_kit', model: 'Аптечка за обект', locationHint: 'охрана', dates: { contentsExpire: d(240), lastInspection: d(-20) } }),
+    // everything overdue
+    e('org-late', { id: 'eq-late-1', siteId: 'site-late-1', kind: 'aed', model: 'ДЕМО AED модел A', serial: 'L-1', locationHint: 'склад, до рампата', publicPlace: none, dates: { batteryExpires: d(-60), padsExpires: d(-20), lastInspection: d(-400), lastService: d(-700) } }),
+    e('org-late', { id: 'eq-late-2', siteId: 'site-late-1', kind: 'extinguisher', model: 'Прахов 6 кг', serial: 'L-P1', locationHint: 'рампа', dates: { lastInspection: d(-300), lastService: d(-800), lastHydro: d(-2000) } }),
+    e('org-late', { id: 'eq-late-3', siteId: 'site-late-1', kind: 'first_aid_kit', model: 'Аптечка за работно място', locationHint: 'офис', dates: { contentsExpire: d(-200), lastInspection: d(-500) } }),
+    // a school: one AED that needs pads soon, the rest in order
+    e('org-school', { id: 'eq-sch-1', siteId: 'site-sch-1', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'S-1', locationHint: 'фоайе, до портиера', openingHours: 'Mo-Fr 07:00-19:00', publicPlace: full, dates: { batteryExpires: d(600), padsExpires: d(19), lastInspection: d(-12), lastService: d(-150) } }),
+    e('org-school', { id: 'eq-sch-2', siteId: 'site-sch-2', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'S-2', locationHint: 'вход на салона', openingHours: 'Mo-Fr 07:00-20:00', publicPlace: { ...full, directionSigns: false }, dates: goodAed }),
+    e('org-school', { id: 'eq-sch-3', siteId: 'site-sch-1', kind: 'extinguisher', model: 'Прахов 6 кг', serial: 'S-P1', locationHint: 'коридор, ет. 1', dates: goodExt }),
+    e('org-school', { id: 'eq-sch-4', siteId: 'site-sch-1', kind: 'first_aid_kit', model: 'Аптечка за училище', locationHint: 'медицински кабинет', dates: { contentsExpire: d(25), lastInspection: d(-30) } }),
+    // a municipality: every kind of building, every status
+    e('org-municipality', { id: 'eq-mun-1', siteId: 'site-mun-1', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'M-1', locationHint: 'фоайе', openingHours: 'Mo-Fr 07:00-19:00', publicPlace: full, dates: goodAed }),
+    e('org-municipality', { id: 'eq-mun-2', siteId: 'site-mun-2', kind: 'aed', model: 'ДЕМО AED модел A', serial: 'M-2', locationHint: 'входна зона', publicPlace: { ...none, signage: true }, dates: { batteryExpires: d(-10), padsExpires: d(200), lastInspection: d(-90), lastService: d(-300) } }),
+    e('org-municipality', { id: 'eq-mun-3', siteId: 'site-mun-3', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'M-3', locationHint: 'главен вход, външен шкаф', openingHours: '24/7', publicPlace: full, dates: { batteryExpires: d(25), padsExpires: d(400), lastInspection: d(-15), lastService: d(-120) } }),
+    e('org-municipality', { id: 'eq-mun-4', siteId: 'site-mun-4', kind: 'aed', model: 'ДЕМО AED модел B', serial: 'M-4', locationHint: 'рецепция', openingHours: 'Mo-Su 06:30-21:30', publicPlace: full, dates: { batteryExpires: d(500), padsExpires: d(300), lastService: d(-60) } }),
+    e('org-municipality', { id: 'eq-mun-5', siteId: 'site-mun-5', kind: 'extinguisher', model: 'Прахов 6 кг', serial: 'M-P1', locationHint: 'салон', dates: goodExt }),
+    e('org-municipality', { id: 'eq-mun-6', siteId: 'site-mun-2', kind: 'first_aid_kit', model: 'Аптечка за детска градина', locationHint: 'кабинет', dates: { contentsExpire: d(-30), lastInspection: d(-60) } }),
+  ];
+  return { orgs, sites, equipment };
+}
+
 /** Open drill accounts; the email is the id without „u-“ @drill.defikarta.bg (e.g. ready@drill.defikarta.bg). */
 const TEST_ACCOUNTS: { id: string; name: string; roles: Role[] }[] = [
   { id: 'u-ready', name: 'Тест Доброволец (готов)', roles: ['public', 'responder'] },
@@ -235,7 +296,37 @@ const TEST_ACCOUNTS: { id: string; name: string; roles: Role[] }[] = [
   { id: 'u-verifier', name: 'Тест Верификатор (БЧК)', roles: ['public', 'verifier'] },
   { id: 'u-dispatcher', name: 'Тест Диспечер', roles: ['public', 'dispatcher'] },
   { id: 'u-admin', name: 'Тест Администратор', roles: ['public', 'dispatcher', 'verifier', 'admin'] },
+  // Volunteers, one for every step and every way it can go wrong
+  { id: 'u-consent', name: 'Тест Доброволец (чака съгласие за местоположение)', roles: ['public', 'responder'] },
+  { id: 'u-quiz', name: 'Тест Доброволец (чака проверка на знанията)', roles: ['public', 'responder'] },
+  { id: 'u-rejected', name: 'Тест Доброволец (отхвърлено удостоверение)', roles: ['public', 'responder'] },
+  { id: 'u-expired', name: 'Тест Доброволец (изтекло удостоверение)', roles: ['public', 'responder'] },
+  { id: 'u-suspended', name: 'Тест Доброволец (спрян)', roles: ['public', 'responder'] },
+  { id: 'u-minor', name: 'Тест Доброволец (под 18, само учения)', roles: ['public', 'responder'] },
+  { id: 'u-quiet', name: 'Тест Доброволец (тихи часове)', roles: ['public', 'responder'] },
+  { id: 'u-multi', name: 'Тест Доброволец и отговорник', roles: ['public', 'responder', 'aed_owner'] },
+  // More ordinary users and staff
+  { id: 'u-public2', name: 'Тест Потребител 2', roles: ['public'] },
+  { id: 'u-trainer', name: 'Тест Инструктор (учения)', roles: ['public', 'dispatcher', 'verifier'] },
+  { id: 'u-verifier2', name: 'Тест Верификатор (Първите три минути)', roles: ['public', 'verifier'] },
+  { id: 'u-dispatcher2', name: 'Тест Диспечер (ЦСМП)', roles: ['public', 'dispatcher'] },
+  // Organisation owners, one per organisation in demoOrg() and moreOrgs()
+  { id: 'u-owner2', name: 'Тест Втори отговорник (ДЕМО Тракия Метал)', roles: ['public', 'aed_owner'] },
+  { id: 'u-owner-ok', name: 'Тест Отговорник (в срок)', roles: ['public', 'aed_owner'] },
+  { id: 'u-owner-late', name: 'Тест Отговорник (всичко просрочено)', roles: ['public', 'aed_owner'] },
+  { id: 'u-owner-new', name: 'Тест Отговорник (нова фирма)', roles: ['public', 'aed_owner'] },
+  { id: 'u-school', name: 'Тест Училище (отговорник)', roles: ['public', 'aed_owner'] },
+  { id: 'u-municipality', name: 'Тест Община (отговорник)', roles: ['public', 'aed_owner'] },
 ];
+
+/** Two reviewed AED suggestions so the verifier's history is not empty. None is pending: approving a made-up point would put it on the public map. */
+function reviewedSubmissions(): Submission[] {
+  const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  return [
+    { id: 'sub-demo-1', submittedAt: ago(52), by: 'u-public', status: 'rejected', reviewNote: 'Не се вижда уред на снимката. Добави нова със снимка на шкафа.', payload: { name: 'Магазин (ДЕМО предложение)', lat: 42.421, lon: 25.642, access: 'customers', indoor: true } },
+    { id: 'sub-demo-2', submittedAt: ago(30), by: 'u-public2', status: 'duplicate', aedId: 'seed:gpche-romain-rolland', reviewNote: 'Същият уред вече е на картата.', payload: { name: 'ГПЧЕ (ДЕМО предложение)', lat: 42.42806, lon: 25.62999, access: 'customers', indoor: true } },
+  ];
+}
 
 export class Store {
   users = new Map<string, User>();
@@ -288,9 +379,11 @@ export class Store {
     // Only real devices from public sources (see README → AED data). No made-up points on the map, even in the drill.
     this.aeds = SEED_AEDS.map<ServerAed>((a) => ({ ...a, status: 'unverified' }));
     const demo = demoOrg(isoDate(new Date()));
-    this.orgs = [demo.org];
-    this.sites = demo.sites;
-    this.equipment = demo.equipment;
+    const more = moreOrgs(isoDate(new Date()));
+    this.orgs = [demo.org, ...more.orgs];
+    this.sites = [...demo.sites, ...more.sites];
+    this.equipment = [...demo.equipment, ...more.equipment];
+    this.submissions = reviewedSubmissions();
     this.maintenance = [];
     this.outbox = [];
     // The demo employer's AEDs stay in its registry only. Listing one („Покажи на картата“) is a manual step in the drill.
@@ -333,6 +426,20 @@ export class Store {
       bot: false,
       certificate: { issuer: 'БЧК Стара Загора (тест)', issuedOn: '2026-10-20', status: 'pending' },
     });
+    // One volunteer per step of the onboarding and per way it can fail (see README → Test accounts).
+    const approved = (issuedOn: string) => ({ issuer: 'БЧК Стара Загора (тест)', issuedOn, status: 'approved' as const });
+    const vol = (userId: string, more: Partial<Responder>): Responder => ({ userId, scope: 'street', status: 'verified', verifiedUntil: '2028-09-01', availability: 'off', acceptCount: 0, offerCount: 0, bot: false, certificate: approved('2026-09-01'), ...more });
+    const terms = { termsVersion: TERMS_VERSION, termsAt: Date.now() };
+    const consent = { locationConsentAt: Date.now() };
+    const quiz = { quizPassedAt: Date.now() };
+    this.responders.set('u-consent', vol('u-consent', { ...terms }));
+    this.responders.set('u-quiz', vol('u-quiz', { ...terms, ...consent }));
+    this.responders.set('u-rejected', vol('u-rejected', { status: 'pending', verifiedUntil: undefined, certificate: { issuer: 'БЧК Стара Загора (тест)', issuedOn: '2026-10-25', status: 'rejected', note: 'Снимката на удостоверението е нечетлива. Качи я отново.' } }));
+    this.responders.set('u-expired', vol('u-expired', { verifiedUntil: '2025-12-31', certificate: approved('2023-12-01'), ...terms, ...consent, ...quiz }));
+    this.responders.set('u-suspended', vol('u-suspended', { status: 'suspended', ...terms, ...consent, ...quiz }));
+    this.responders.set('u-minor', vol('u-minor', { scope: 'school', certificate: { issuer: 'Първите три минути (тест)', issuedOn: '2026-09-15', status: 'approved' }, ...terms, ...consent, ...quiz }));
+    this.responders.set('u-quiet', vol('u-quiet', { quiet: { from: 0, to: 24 }, ...terms, ...consent, ...quiz }));
+    this.responders.set('u-multi', vol('u-multi', { ...terms, ...consent, ...quiz }));
     // Bots are pre-onboarded; the human test volunteer goes through terms, consent and the knowledge check in the UI.
     for (const b of botResponders()) {
       this.users.set(b.user.id, b.user);

@@ -15,11 +15,31 @@ const ACCOUNTS: [string, string, string, LucideIcon][] = [
   ['owner', 'Отговорник безопасност', 'Дефибрилатори, пожарогасители и аптечки на фирмата', Building],
 ];
 
+/** The rest of the drill accounts (README → Test accounts). The five above are the ones most tests start from. */
+const MORE: [string, string][] = [
+  ['consent', 'Доброволец, чака съгласие'],
+  ['quiz', 'Доброволец, чака проверка на знанията'],
+  ['rejected', 'Доброволец, отхвърлено удостоверение'],
+  ['expired', 'Доброволец, изтекло удостоверение'],
+  ['suspended', 'Доброволец, спрян'],
+  ['minor', 'Доброволец под 18'],
+  ['quiet', 'Доброволец, тихи часове'],
+  ['multi', 'Доброволец и отговорник'],
+  ['public2', 'Потребител 2'],
+  ['owner2', 'Втори отговорник (Тракия Метал)'],
+  ['owner-ok', 'Организация в срок (Мол Галерия)'],
+  ['owner-late', 'Организация, всичко просрочено (Склад)'],
+  ['owner-new', 'Нова организация, празна'],
+  ['school', 'Училище'],
+  ['municipality', 'Община'],
+];
+
 export default function Login() {
   const { login, refresh } = useSession();
   const [email, setEmail] = useState('');
   const [server, setSrv] = useState(getServer());
   const [advanced, setAdvanced] = useState(false);
+  const [more, setMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,6 +81,23 @@ export default function Login() {
         ))}
       </View>
 
+      <Pressable onPress={() => setMore(!more)} accessibilityRole="button" accessibilityState={{ expanded: more }} style={styles.adv}>
+        <UserRound size={18} color={colors.ink2} strokeWidth={2.2} />
+        <T v="label" color={colors.ink2} style={{ flex: 1 }}>Още тестови профили</T>
+        <ChevronDown size={18} color={colors.ink2} strokeWidth={2.2} style={{ transform: [{ rotate: more ? '180deg' : '0deg' }] }} />
+      </Pressable>
+      {more && (
+        <View style={{ gap: space.sm }}>
+          {MORE.map(([id, name]) => (
+            <Pressable key={id} disabled={busy} onPress={() => go(`${id}@drill.defikarta.bg`)} accessibilityRole="button" accessibilityLabel={name} style={({ pressed }) => [styles.more, pressed && { opacity: 0.7 }]}>
+              <T v="bodyStrong" style={{ flex: 1 }}>{name}</T>
+              <T v="caption">{id}@</T>
+            </Pressable>
+          ))}
+          <T v="caption">Диспечер, верификатор и администратор влизат от компютъра. Целият списък е в README.</T>
+        </View>
+      )}
+
       <Card>
         <Field label="Имейл" value={email} onChange={setEmail} placeholder="ime@example.com" keyboard="email-address" hint="Нов потребител? Влизаш и после ставаш доброволец с удостоверение." />
         <Button size="lg" title="Продължи" disabled={busy || !email.includes('@')} onPress={() => go(email)} />
@@ -87,5 +124,6 @@ export default function Login() {
 const styles = StyleSheet.create({
   account: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, padding: 14, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   accIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
+  more: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 14, borderRadius: radius.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
   adv: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 4 },
 });
