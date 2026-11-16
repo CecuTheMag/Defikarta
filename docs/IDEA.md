@@ -128,24 +128,21 @@ Category trap to avoid: ❌ "a map of defibrillators" is a CRUD app. ✅ Real-ti
 
 ## 8. Budget (Идейник, ≤ €1,000)
 
-Full budget with sources and the reasoning behind every line: [BUDGET.md](BUDGET.md) (Bulgarian) and the live spreadsheet [budget.xlsx](budget.xlsx). Prices checked 31 Oct 2026, VAT included.
+Full budget with the reasoning behind every line: [BUDGET.md](BUDGET.md) (Bulgarian) and the live spreadsheet [budget.xlsx](budget.xlsx). Prices include VAT.
 
 | Item | € |
 |---|---|
-| CPR mannequin (Prestan Ultralite) | 252 |
-| AED trainer (Prestan UltraTrainer, cannot shock) | 204 |
-| БЧК first-aid course × 2 drill leads (€96 each; the rest via sponsored places) | 192 |
-| Hosting 6 months + defikarta.bg domain | 72 |
-| AI development tool, 3 months (first line to cut) | 66 |
-| 100 weatherproof QR stickers | 60 |
-| Printing, consumables, local transport | 85 |
-| Lawyer (pro bono first) | 0 |
-| Reserve | 69 |
-| **Total** | **1,000** |
+| AI tools and development, 6 months × €88 (priority 2, first line to cut) | 528 |
+| Advertising materials: 100 QR stickers, flyers, posters, drill signs and consent forms | 150 |
+| БЧК first-aid course × 1 (the drill lead; the rest via sponsored places) | 96 |
+| Server, 1 year (prepaid) | 72 |
+| defikarta.bg domain, 1 year | 36 |
+| Reserve (prices, delivery, 1 hour of legal advice) | 100 |
+| **Total** | **982** |
 
-The money goes to winners after the final (16 Jan 2027), so it covers Feb–Jul 2027. The November drills for the video use a borrowed mannequin; the team's own costs until then are about €86. If we get less: €540 covers the must-haves, €845 adds the AED trainer and the rest.
+The money goes to winners after the final (16 Jan 2027), so it covers Feb–Jul 2027. The mannequin and AED trainer for the drills are borrowed (school, БЧК), not bought. The November drills for the video also use borrowed equipment; the team's own costs until then are about €86. If we get less: €454 covers the must-haves (course, server, domain, advertising, reserve) and €718 adds three months of the AI tool.
 
-Running cost after the contests: ~€6/month for the server. НОИТ requires the system to stay online until **≥ 1 month after the national round** (≈ June 2027).
+Running cost after the contests: ~€6/month for the server, prepaid for a year. НОИТ requires the system to stay online until **≥ 1 month after the national round** (≈ June 2027).
 
 ## 9. Timeline
 
