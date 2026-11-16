@@ -14,7 +14,9 @@ Find the nearest AED, call 112 and get guided through hands-only CPR.
 ## Structure
 
 ```
-apps/mobile     Native iOS + Android app (Expo / React Native, Expo Router)
+apps/mobile     Native iOS + Android app (Expo / React Native, Expo Router), also built for the web.
+                public/site is the public website (plain HTML, CSS and JS, no build step): the map,
+                the app in a phone frame, who it is for, the data. Desktop browsers land on it from "/"
 apps/web        Website + installable PWA (Vite, React, Leaflet): public flow, add-AED,
                 responder app, dispatcher console, coverage map
 apps/server    Local drill backend (Node, no database or account needed): the BLUEPRINT
@@ -52,6 +54,17 @@ adb reverse tcp:8791 tcp:8791   # the app reaches the drill server over USB at h
 ```
 
 The map is OpenStreetMap drawn by Leaflet inside the app, so no Google Maps key is needed. On Wi-Fi, set the computer's address in Вход → Сървър.
+
+## The public website
+
+Desktop browsers that open the app's address land on `/site/`: a full-screen map with a searchable list, a coverage layer, "my location" with walking times, and the real app in a phone frame (an iframe, so the app still sees a phone-sized screen; its 112 button does not dial from there). Phones and installed apps still get the app.
+
+```bash
+node scripts/preview-site.mjs        # http://localhost:5190; the site is local, the app comes from the live site
+npx tsx scripts/bake-site-data.mts   # after changing packages/core/src/seed.ts: rebuilds public/site/data/site-data.json
+```
+
+The site ships inside the Expo web export (`apps/mobile/public`), so there is nothing extra to deploy. Leaflet (BSD-2), qrcode-generator (MIT) and Source Serif 4 (SIL OFL) are vendored there. Opening `/?app=1` always gives the app, even on a desktop.
 
 ## Try the whole idea (drill environment)
 

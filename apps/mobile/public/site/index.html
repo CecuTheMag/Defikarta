@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ДефиКарта: карта на дефибрилаторите в Стара Загора</title>
+  <meta name="description" content="Къде е най-близкият дефибрилатор в Стара Загора и областта. Карта, указания за сърдечен масаж с метроном и регистър на поддръжката. Безплатно, без регистрация.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="bg_BG">
+  <meta property="og:site_name" content="ДефиКарта">
+  <meta property="og:title" content="ДефиКарта: къде е най-близкият дефибрилатор?">
+  <meta property="og:description" content="Карта на дефибрилаторите в Стара Загора, масаж с глас и метроном и първо винаги 112. Проект на ученици.">
+  <meta property="og:image" content="https://defikarta.stormlabs.cloud/site/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <a class="skip" href="#karta">Към картата</a>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m13.2 13.2 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-back" viewBox="0 0 20 20"><path d="M12 4 6 10l6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 20 20"><path d="M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 1.8v3M10 15.2v3M1.8 10h3M15.2 10h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-out" viewBox="0 0 20 20"><path d="M8 4H4v12h12v-4M11 3h6v6M17 3l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-route" viewBox="0 0 20 20"><circle cx="5" cy="15" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15" cy="5" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 13V8.5A2.5 2.5 0 0 1 7.5 6H11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2 5 13.2h5.6L9.4 22 19 10.2h-5.7z" fill="currentColor"/></symbol>
+  </svg>
+
+  <header class="nav" id="nav">
+    <div class="nav-in">
+      <a class="brand" href="#karta" aria-label="ДефиКарта, към началото">
+        <img src="/icon-192.png" alt="" width="32" height="32">
+        <span>ДефиКарта</span>
+      </a>
+      <nav class="links" aria-label="Раздели">
+        <a href="#karta" data-spy="karta">Карта</a>
+        <a href="#prilozhenie" data-spy="prilozhenie">Приложение</a>
+        <a href="#za-kogo" data-spy="za-kogo">За кого е</a>
+        <a href="#danni" data-spy="danni">Данни</a>
+        <a href="#kontakt" data-spy="kontakt">Контакт</a>
+      </nav>
+      <div class="nav-act">
+        <button class="btn btn-line" id="qr-btn" type="button" aria-expanded="false" aria-controls="qr-pop">Отвори на телефона</button>
+        <div class="pop" id="qr-pop" role="dialog" aria-label="QR код за телефона" hidden>
+          <div class="pop-qr" id="qr-code" role="img" aria-label="QR код към ДефиКарта"></div>
+          <div>
+            <b>Насочете камерата на телефона</b>
+            <p>Приложението се отваря в браузъра и се инсталира без магазин. Работи и без интернет.</p>
+            <code id="qr-host"></code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ КАРТА ============ -->
+    <section class="map-sec" id="karta" aria-label="Карта на дефибрилаторите">
+      <aside class="side" aria-label="Списък с дефибрилатори">
+        <div class="side-head">
+          <p class="eyebrow">Стара Загора и областта</p>
+          <h1>Къде е най-близкият дефибрилатор?</h1>
+          <p class="lede">Уредите, за които има публично потвърждение. Данните са отворени и се допълват от всеки.</p>
+        </div>
+
+        <div class="side-tools">
+          <label class="search">
+            <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+            <input id="q" type="search" placeholder="Търсене по обект, адрес или град" autocomplete="off" spellcheck="false" aria-label="Търсене">
+            <kbd aria-hidden="true">/</kbd>
+          </label>
+          <div class="chips" role="group" aria-label="Филтри">
+            <button type="button" class="chip" data-f="all" aria-pressed="true">Всички <span class="n"></span></button>
+            <button type="button" class="chip" data-f="always" aria-pressed="false">Денонощни <span class="n"></span></button>
+            <button type="button" class="chip" data-f="free" aria-pressed="false">Свободен достъп <span class="n"></span></button>
+          </div>
+        </div>
+
+        <div class="side-body">
+          <div class="list-head"><span id="count">Уреди</span><button type="button" class="link-btn" id="sort-hint" hidden></button></div>
+          <ul class="list" id="list" aria-label="Дефибрилатори"></ul>
+          <p class="empty" id="empty" hidden>Няма уреди по тези критерии. <button type="button" class="link-btn" id="reset">Покажи всички</button></p>
+
+          <article class="detail" id="detail" hidden aria-live="polite"></article>
+        </div>
+
+        <div class="cov" id="cov">
+          <label class="switch-row">
+            <span class="sw-text"><b>Покритие на града</b><small>Колко от града е на 5 минути пеша от уред</small></span>
+            <input type="checkbox" id="cov-on" role="switch">
+            <span class="sw" aria-hidden="true"></span>
+          </label>
+          <div class="cov-body" id="cov-body" hidden>
+            <div class="seg" role="group" aria-label="Кои уреди се броят">
+              <button type="button" data-s="now" aria-pressed="true">Известни уреди</button>
+              <button type="button" data-s="always" aria-pressed="false">Само денонощни</button>
+            </div>
+            <p class="cov-stat"><span class="big" id="cov-big">3 %</span><span id="cov-text"></span></p>
+            <p class="cov-note">Първа оценка по площ, не по население: градски правоъгълник 4,4 × 6,2 км, клетки по 250 м, ходене пеша. Ще се променя с новите данни.</p>
+          </div>
+        </div>
+      </aside>
+
+      <div class="map-wrap">
+        <div id="map" role="application" aria-label="Карта"></div>
+        <div class="map-ctl" aria-label="Управление на картата">
+          <button type="button" id="z-in" aria-label="Приближи"><svg class="ic"><use href="#i-plus"/></svg></button>
+          <button type="button" id="z-out" aria-label="Отдалечи"><svg class="ic"><use href="#i-minus"/></svg></button>
+          <span class="ctl-gap"></span>
+          <button type="button" id="fit" aria-label="Покажи всички уреди" title="Покажи цялата област"><svg class="ic"><use href="#i-fit"/></svg></button>
+          <button type="button" id="locate" aria-label="Моето местоположение" title="Моето местоположение"><svg class="ic"><use href="#i-locate"/></svg></button>
+        </div>
+        <div class="legend" id="legend" hidden>
+          <span><i style="background:#0E9F6E"></i>до 5 минути пеша</span>
+          <span><i style="background:#F5A524"></i>5 до 10 минути</span>
+          <span><i class="plain"></i>над 10 минути</span>
+        </div>
+        <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+      </div>
+    </section>
+
+    <!-- ============ ПРИЛОЖЕНИЕ ============ -->
+    <section class="app-sec" id="prilozhenie" aria-labelledby="app-h">
+      <div class="wrap app-grid">
+        <div class="app-copy">
+          <p class="eyebrow on-dark">Приложението</p>
+          <h2 id="app-h">Работи на телефона. Опитайте го тук.</h2>
+          <p class="lead">Същото приложение като на телефона, без регистрация и без магазин. Инсталира се от браузъра и работи и без интернет.</p>
+
+          <div class="tabs" role="tablist" aria-label="Екрани на приложението" aria-orientation="vertical">
+            <button type="button" role="tab" class="tab" id="tab-1" data-src="/" aria-selected="true" aria-controls="phone-screen"><span class="num">01</span><span><b>Най-близкият уред</b><small>Разстояние, време пеша и маршрут. Непознатите работни часове се показват като неизвестни.</small></span></button>
+            <button type="button" role="tab" class="tab" id="tab-2" data-src="/emergency" aria-selected="false" aria-controls="phone-screen"><span class="num">02</span><span><b>Първо 112</b><small>При „Някой припадна“ първият екран е винаги обаждане на 112. Не се прескача.</small></span></button>
+            <button type="button" role="tab" class="tab" id="tab-3" data-src="/cpr" aria-selected="false" aria-controls="phone-screen"><span class="num">03</span><span><b>Масаж с глас и метроном</b><small>Указания по ERC 2021 и метроном 110 в минута.</small></span></button>
+            <button type="button" role="tab" class="tab" id="tab-4" data-src="/learn" aria-selected="false" aria-controls="phone-screen"><span class="num">04</span><span><b>Научи</b><small>Шестнайсет кратки карти за първа помощ. Три минути са достатъчни.</small></span></button>
+          </div>
+        </div>
+
+        <div class="phone-col">
+          <div class="stage" id="stage">
+            <div class="phone"><div class="screen" id="phone-screen" role="tabpanel"><iframe id="app-frame" title="ДефиКарта: приложение" loading="lazy" allow="geolocation; autoplay; clipboard-write; web-share" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe></div></div>
+          </div>
+          <p class="phone-note">Демо на компютър: бутонът 112 не набира от тук. На телефона го прави.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ЗА КОГО ============ -->
+    <section class="aud" id="za-kogo" aria-labelledby="aud-h">
+      <div class="wrap">
+        <p class="eyebrow">За кого е</p>
+        <h2 id="aud-h">Един проект, три различни нужди</h2>
+        <div class="aud-grid">
+          <article>
+            <p class="no">01</p>
+            <h3>За човека до пострадалия</h3>
+            <p>Безплатно и без регистрация. Първо 112, после масаж с глас и метроном и най-близкият уред. Работи и без интернет.</p>
+          </article>
+          <article>
+            <p class="no">02</p>
+            <h3>За собственика на уред</h3>
+            <p>Регистър на дефибрилаторите, пожарогасителите и аптечките във всички обекти. Срокове за батерия и електроди, напомняния 30, 7 и 0 дни преди изтичане и отчет за проверка. На картата уредът получава значка „поддръжката се следи“.</p>
+          </article>
+          <article>
+            <p class="no">03</p>
+            <h3>За общината</h3>
+            <p>Регистър на уредите в общинските сгради, карта на покритието и отговор на въпроса къде да сложим следващите. Тримесечен отчет и контролен списък по проекта на наредба.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ДАННИ ============ -->
+    <section class="dat" id="danni" aria-labelledby="dat-h">
+      <div class="wrap dat-grid">
+        <div>
+          <p class="eyebrow">Данни</p>
+          <h2 id="dat-h">Откъде са данните и колко може да им се вярва</h2>
+          <p class="lead">В България никой не е длъжен да съобщава за поставен дефибрилатор и няма обща карта. Затова започнахме с проверка на всичко, което е публично.</p>
+
+          <table class="tbl" aria-describedby="tbl-cap">
+            <caption id="tbl-cap">Какво намерихме в Старозагорска област на 2 ноември 2026</caption>
+            <tbody>
+              <tr><th scope="row">OpenStreetMap <span>16 в цялата страна</span></th><td>0</td></tr>
+              <tr><th scope="row">Картата на firstaid.bg <span>Decathlon, Metro, OMV Оризово</span></th><td>3</td></tr>
+              <tr><th scope="row">„Капачки за бъдеще“ <span>три дарени училища</span></th><td>3</td></tr>
+              <tr><th scope="row">Новини за всичките 11 общини <span>нищо повече</span></th><td>0</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row">Потвърдени за цялата област</th><td>6</td></tr></tfoot>
+          </table>
+          <p class="fine">Всеки уред на картата има публичен източник и сграда, която знаем. Точките са по сградата, не по самия шкаф. Работното време остава празно, докато не го потвърди източникът или ние.</p>
+        </div>
+
+        <div class="rules">
+          <h3>Правилата, които не нарушаваме</h3>
+          <ol>
+            <li><b>112 е винаги първо.</b> Приложението не замества и не бави линейката.</li>
+            <li><b>Не показваме „отворено“, когато не знаем.</b> Непознатото се казва като неизвестно.</li>
+            <li><b>Текстовете за масаж следват ERC 2021.</b> Преглед от инструктори е в ход преди окончателно публикуване.</li>
+            <li><b>Известия до доброволци за реални случаи са изключени,</b> докато юрист и организации по първа помощ не отговорят писмено на въпросите за отговорност и лични данни.</li>
+            <li><b>Точното местоположение</b> се ползва само в приет случай и се изтрива при затваряне.</li>
+            <li><b>Данните са отворени</b> (OpenStreetMap, ODbL), а кодът е с отворен лиценз (GPL-3.0).</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="wrap status">
+        <h3>Състояние на проекта</h3>
+        <dl>
+          <div><dt><span class="tag ok">Работи</span></dt><dd>Карта на потвърдените уреди. Регистър за собственици със срокове и напомняния. Форма „Добави AED“ с проверка. Масаж с глас и метроном. „Научи“.</dd></div>
+          <div><dt><span class="tag wip">Учебна среда</span></dt><dd>Доброволци с удостоверения и известия, профили за шестте роли. Обозначено „УЧЕНИЕ“ и не е пуснато на живо.</dd></div>
+          <div><dt><span class="tag next">Следва</span></dt><dd>Бутон „Сигнализирай проблем“ и QR стикер към конкретен уред. Карта на покритието с данните на общината.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ============ КОНТАКТ ============ -->
+    <section class="contact" id="kontakt" aria-labelledby="c-h">
+      <div class="wrap contact-in">
+        <div>
+          <h2 id="c-h">Дефибрилатор във вашата сграда?</h2>
+          <p class="lead">Кажете ни къде е и кой го поддържа. Ще го проверим на място, ще го впишем в OpenStreetMap и ще го покажем на картата, ако ни позволите. Общини и организации с много обекти могат да ползват регистър с напомняния.</p>
+        </div>
+        <div class="contact-act">
+          <a class="btn btn-solid" id="mail" href="mailto:defikarta@gmail.com?subject=%D0%94%D0%B5%D1%84%D0%B8%D0%B1%D1%80%D0%B8%D0%BB%D0%B0%D1%82%D0%BE%D1%80%20%D0%B2%20%D0%BD%D0%B0%D1%88%D0%B0%D1%82%D0%B0%20%D1%81%D0%B3%D1%80%D0%B0%D0%B4%D0%B0">Пишете ни</a>
+          <p>defikarta@gmail.com</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <p><b>ДефиКарта</b> · проект на ученици от Стара Загора · Идейник 2026</p>
+      <p>Приложението е помощно средство и не замества спешния телефон 112.</p>
+      <p>Карта © участниците в <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>. Данните за уредите са отворени.</p>
+    </div>
+  </footer>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>
