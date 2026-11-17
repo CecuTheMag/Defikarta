@@ -9,6 +9,7 @@ Find the nearest AED, call 112 and get guided through hands-only CPR.
 - [docs/QUESTIONS.md](docs/QUESTIONS.md): answers to the mentor's and jury's questions (existing AEDs, the municipality, fault reporting, БЧК, outreach, using an AED, long-term vision), in Bulgarian
 - [docs/revenue-model.xlsx](docs/revenue-model.xlsx): revenue model for institutional income, Bulgaria 2027–2034, four scenarios (Low, Realistic, Optimistic, Blue sky) with live formulas; every price, penetration and cost is an input to test
 - [docs/MEMORANDUM.md](docs/MEMORANDUM.md) and [docs/PILOT-OFFER.md](docs/PILOT-OFFER.md): drafts (Bulgarian) of the three-way memorandum with the municipality, „Първите три минути“ and БЧК, and the paid 12-month pilot offer to the municipality; placeholders in [brackets], not yet reviewed by a lawyer
+- [docs/final/DefiKarta-Obshtina-Stara-Zagora-FINAL.pdf](docs/final/DefiKarta-Obshtina-Stara-Zagora-FINAL.pdf): **final** two-page handout for Община Стара Загора (Bulgarian): what ДефиКарта is and what already works, and why the municipality gains from the partnership
 - [docs/BLUEPRINT.md](docs/BLUEPRINT.md): how the whole system works: architecture (Phase 1 Supabase → Phase 2 distributed services), data model, incident state machine, dispatch algorithm, privacy, API, security, testing, build order
 
 ## Structure
